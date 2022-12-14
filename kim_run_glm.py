@@ -42,7 +42,47 @@ def kim_run_glm():
     print(Xsize)
     print(ysize)
 
-    print("kim_run_glm beginning")
+    # For each column of X and y, calculate the moving average
+    # and downsample by a factor of bin
+    bin=5
+    for i in range(Xsize[1]): 
+        # if i is 0, initialize newX
+        if i==0:
+            newX = pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]
+        else:
+            # if is last column of X, i.e., trial number, downsample but don't average
+            if i==Xsize[1]-1:
+                newX = np.concatenate((newX, X[::bin,i].reshape(newX.shape[0],1)), axis=1)
+            else:
+                newX = np.concatenate((newX, pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]), axis=1)
+    for i in range(ysize[1]):
+        # if i is 0, initialize newY
+        if i==0:
+            newY = pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]
+        else:
+            newY = np.concatenate((newY, pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]), axis=1)
+    inx=newX[:,1:-2]>0
+    newX[:,1:-2]=inx
+    newX[0,-1]=X[0,-1]
+    X=newX
+    y=newY
+    # Replace Nan with 0
+    X[np.isnan(X)] = 0
+    y[np.isnan(y)] = 0
+    
+    # Plot last column of X
+    plt.plot(newX[:,-1])
+    plt.show()
+
+    # For each column of X except the last column, take derivative of X
+    # i.e., beginning of each event
+    newX = np.zeros(X.shape)
+    for i in range(Xsize[1]-1):
+        newX[:,i] = np.concatenate((np.diff(X[:,i]), np.zeros(1)),axis=0)
+    newX[newX != 1] = 0
+    # Add last column of X to newX
+    newX = np.concatenate((newX, X[:,-1].reshape(-1,1)), axis=1)
+    X=newX
  
     folds = 3  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
@@ -85,7 +125,6 @@ def kim_run_glm():
     X_design = np.concatenate((X_design, X[:, -1].reshape(-1, 1)), axis=1)
 
     # Make a heatmap plot of X_design
-    plt.figure(figsize=(20, 10))
     # Subset of X_design
     X_design_sub = X_design[0:100, 0:100]
     # Get number of columns of y
@@ -167,17 +206,12 @@ def kim_run_glm():
     y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
     plt.show()
     sns.set(style='white', palette='colorblind', context='poster')
-    plt.figure(figsize=(20,10))
     plt.plot(pred, label='Predicted Signal', alpha=0.5)
     plt.plot(y_true.values, label='True Signal', alpha=0.5)
-    # Add zoom to plot
-    ax = plt.gca()
-    ax.xaxis.zoom(0.5)
     plt.show()
     # Reconstruct the training data
     y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
     plt.show()
-    plt.figure(figsize=(20,10))
     plt.plot(pred, label='Predicted Signal', alpha=0.5)
     plt.plot(y_true.values, label='True Signal', alpha=0.5)
     plt.show()
