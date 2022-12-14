@@ -23,68 +23,49 @@ def kim_run_glm():
     # define files to import from Matlab
     Xname=r'C:\Users\sabatini\Documents\behEvents.mat'
     yname=r'C:\Users\sabatini\Documents\neuron_data_matrix.mat'
+    timename=r'C:\Users\sabatini\Documents\timepoints.mat'
 
     # read files
     X=scipy.io.loadmat(Xname)
     y=scipy.io.loadmat(yname)
+    timepoints=scipy.io.loadmat(timename)
     X = X['behEvents']
     y = y['neuron_data_matrix']
+    timepoints = timepoints['timepoints']
+
+    # Kim's setup of beh events
+    # list of event types
+    event_types = ['cue', 'opto', 'distract', 'reachzone', 'fidget', 'success', 'drop', 'missing', 'failure', 'chew']
 
     # flip dimensions of X
     X = np.transpose(X)
     y = np.transpose(y)
+    timepoints = np.transpose(timepoints)
+    time_step = np.median(np.diff(timepoints, 1, 0))
 
     # size of X
     Xsize = X.shape
     ysize = y.shape
+    tsize = timepoints.shape
 
     # print size of X
     print(Xsize)
     print(ysize)
+    print(tsize)
 
     # For each column of X and y, calculate the moving average
     # and downsample by a factor of bin
-    bin=5
-    for i in range(Xsize[1]): 
-        # if i is 0, initialize newX
-        if i==0:
-            newX = pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]
-        else:
-            # if is last column of X, i.e., trial number, downsample but don't average
-            if i==Xsize[1]-1:
-                newX = np.concatenate((newX, X[::bin,i].reshape(newX.shape[0],1)), axis=1)
-            else:
-                newX = np.concatenate((newX, pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]), axis=1)
-    for i in range(ysize[1]):
-        # if i is 0, initialize newY
-        if i==0:
-            newY = pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]
-        else:
-            newY = np.concatenate((newY, pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]), axis=1)
-    inx=newX[:,1:-2]>0
-    newX[:,1:-2]=inx
-    newX[0,-1]=X[0,-1]
-    X=newX
-    y=newY
-    # Replace Nan with 0
-    X[np.isnan(X)] = 0
-    y[np.isnan(y)] = 0
-    
-    # Plot last column of X
-    plt.plot(newX[:,-1])
-    plt.show()
+    bin=1 # was already downsampled in Matlab?
+    if bin != 1:
+        X, y = downsample_before_design_matrix(X, y, bin)
+        # downsample timepoints by bin
+        timepoints = timepoints[::bin]
 
     # For each column of X except the last column, take derivative of X
     # i.e., beginning of each event
-    newX = np.zeros(X.shape)
-    for i in range(Xsize[1]-1):
-        newX[:,i] = np.concatenate((np.diff(X[:,i]), np.zeros(1)),axis=0)
-    newX[newX != 1] = 0
-    # Add last column of X to newX
-    newX = np.concatenate((newX, X[:,-1].reshape(-1,1)), axis=1)
-    X=newX
+    #X = just_beginning_of_behavior_events(X)
  
-    folds = 3  # k folds for cross validation
+    folds = 5  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
     pgss = None  # proportion of data to use for generalized cross validation     
     score_method = 'r2' # 'mse' or 'r2'
@@ -100,8 +81,8 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-10
-    b=10
+    a=-20
+    b=20
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -140,6 +121,8 @@ def kim_run_glm():
     # Name last column of X_design 'nTrials'
     # Name neuron columns of X_design 'neuron0', 'neuron1', etc.
     X_design = pd.DataFrame(X_design)
+    whichevent = 0
+    counterforshifts = 0
     for i in range(X_design.shape[1]):
         if i == X_design.shape[1]-1:
             X_design.rename(columns={i: 'nTrial'}, inplace=True)
@@ -147,7 +130,13 @@ def kim_run_glm():
             if i >= X_design.shape[1]-ysize[1]-1:
                 X_design.rename(columns={i: f'neuron{i-(X_design.shape[1]-ysize[1]-1)}'}, inplace=True)
             else:
-                X_design.rename(columns={i: f'event{i}'}, inplace=True)
+                # get event type whichevent index into event_types
+                event_type = event_types[whichevent]
+                X_design.rename(columns={i: f'{event_type}{counterforshifts}'}, inplace=True)
+                counterforshifts += 1
+                if counterforshifts == len(nshifts):
+                    counterforshifts = 0
+                    whichevent += 1
     print(X_design.head())
 
     # pause code
@@ -162,11 +151,12 @@ def kim_run_glm():
                                                 id_cols=['nTrial'],
                                                 perc_holdout=pholdout)
 
-    # Get columns of dfrel_setup with 'event' or 'nTrial' in the name
+    # Get columns of dfrel_setup with an element of event_types or 'nTrial' in the name
     # These are the columns that will be used for training
     # Exclude columns with 'neuron' in the name
-    # These are the columns that will be used for testing
-    X_setup_cols = [col for col in dfrel_setup.columns if 'event' in col or 'nTrial' in col]
+    X_setup_cols = [col for col in dfrel_setup.columns if any(ev in col for ev in event_types) or 'nTrial' in col]
+    # show names of columns of dfrel_setup that will be used for training
+    print(X_setup_cols)
     X_neuron_cols = [col for col in dfrel_holdout.columns if 'neuron' in col]
     # Use X_setup_cols to subset dfrel_setup and dfrel_holdout
     X_setup, X_holdout = dfrel_setup[X_setup_cols].copy(), dfrel_holdout[X_setup_cols].copy()
@@ -216,18 +206,40 @@ def kim_run_glm():
         y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
         # close figure
         plt.close()
+        # Set style
         sns.set(style='white', palette='colorblind', context='poster')
         # make figure
         plt.figure(figsize=(10, 5))
-        plt.plot(pred, label='Predicted Signal', alpha=0.5)
-        plt.plot(y_true.values, label='True Signal', alpha=0.5)
-        plt.show()
+        # subplot
+        plt.subplot(3, 1, 1)
+        plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
+        plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
+        plt.ylabel('Firing Rate (Hz)')
+        # title of this subplot
+        plt.title(f'Neuron {i} reconstrution of held-out data')
         # Reconstruct the training data
         y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
         plt.close()
-        plt.figure(figsize=(10, 5))
-        plt.plot(pred, label='Predicted Signal', alpha=0.5)
-        plt.plot(y_true.values, label='True Signal', alpha=0.5)
+        plt.subplot(3, 1, 2)
+        plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
+        plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
+        plt.ylabel('Firing Rate (Hz)')
+        plt.xlabel('Time (s)')
+        plt.legend()
+        plt.title(f'Neuron {i} reconstrution of training data')
+
+        # Get coefficients from model
+        coef = glm.coef_
+        # Get intercept from model
+        intercept = glm.intercept_
+        # Get number of features
+        num_features = len(coef)
+        # Get feature names
+        feature_names = X_setup.columns
+        # Plot coefficients
+        plt.subplot(3, 1, 3)
+        plt.plot(range(num_features), coef)
+        plt.title(f'Neuron {i} coefficients')
         plt.show()
 
         input("Press Enter to continue...")
@@ -265,6 +277,77 @@ def kim_run_glm():
                             f'Params: {v_[4]}'))
                     print(lss_spc + ']')
 
+
+def just_beginning_of_behavior_events(X):
+
+    '''
+    Returns the start of each behavior event
+    Args:
+        X: behavior data where rows are timepoints and columns are different types of beh event
+            Note last trial must be the trial number
+    Returns:
+        X: with just the start of each behavior event
+    '''
+
+    Xsize = X.shape
+
+    newX = np.zeros(X.shape)
+    for i in range(Xsize[1]-1):
+        newX[:,i] = np.concatenate((np.diff(X[:,i]), np.zeros(1)),axis=0)
+    newX[newX != 1] = 0
+    # Add last column of X to newX
+    newX = np.concatenate((newX, X[:,-1].reshape(-1,1)), axis=1)
+    X=newX
+
+    return X
+
+def downsample_before_design_matrix(X, y, bin):
+
+    '''
+    Downsample neuron data and behavior events by same amount
+    Args:
+        X: behavior data where rows are timepoints and columns are different types of beh event
+            Note last trial must be the trial number
+        y: neural data where rows are timepoints and columns are different neurons
+        bin: bin size to downsample by
+    Returns:
+        X: downsampled behavior data
+        y: downsampled neural data
+    '''
+
+    Xsize = X.shape
+    ysize = y.shape
+
+    for i in range(Xsize[1]): 
+        # if i is 0, initialize newX
+        if i==0:
+            newX = pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]
+        else:
+            # if is last column of X, i.e., trial number, downsample but don't average
+            if i==Xsize[1]-1:
+                newX = np.concatenate((newX, X[::bin,i].reshape(newX.shape[0],1)), axis=1)
+            else:
+                newX = np.concatenate((newX, pd.DataFrame(X[:,i]).rolling(bin).mean().values[::bin]), axis=1)
+    for i in range(ysize[1]):
+        # if i is 0, initialize newY
+        if i==0:
+            newY = pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]
+        else:
+            newY = np.concatenate((newY, pd.DataFrame(y[:,i]).rolling(bin).mean().values[::bin]), axis=1)
+    inx=newX[:,1:-2]>0
+    newX[:,1:-2]=inx
+    newX[0,-1]=X[0,-1]
+    X=newX
+    y=newY
+    # Replace Nan with 0
+    X[np.isnan(X)] = 0
+    y[np.isnan(y)] = 0
+    
+    # Plot last column of X
+    plt.plot(newX[:,-1])
+    plt.show()
+
+    return X, y
 
 def training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params):
     '''
