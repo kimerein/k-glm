@@ -100,8 +100,8 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-100
-    b=100
+    a=-10
+    b=10
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -155,7 +155,7 @@ def kim_run_glm():
 
     res = {} # results dictionary
 
-    whichneuron = 'neuron0'
+    whichneuron = 'neuron1'
 
     # Split data into setup (training) and holdout (test) sets
     np.random.seed(30186)
