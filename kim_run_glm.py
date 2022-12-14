@@ -67,7 +67,7 @@ def kim_run_glm():
 
     # For each column of X except the last column, take derivative of X
     # i.e., beginning of each event
-    #X = just_beginning_of_behavior_events(X)
+    # X = just_beginning_of_behavior_events(X)
  
     folds = 5  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
@@ -88,8 +88,8 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-20
-    b=20
+    a=-5
+    b=5
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -97,7 +97,7 @@ def kim_run_glm():
     for i in nshifts:        
         # Shift the data by i time steps
         # Exclude last column of X from design matrix, because this is trial number
-        X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(i).fillna(0).values
+        X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(nshifts[i]).fillna(0).values
         # Add the shifted data to the design matrix
         # If i is the first element of nshifts, then X_design is X_shifted
         # Otherwise, concatenate X_design and X_shifted
@@ -173,7 +173,7 @@ def kim_run_glm():
     # Iterate through neurons
 
     #for i in range(ysize[1]):
-    for i in range(1):
+    for i in [2]:
         # Name of neuron
         whichneuron = f'neuron{i}'
 
@@ -393,7 +393,7 @@ def kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_
         # get color
         color = colors[event_types.index(feature_name.split('_')[0])]
         # plot feature as a scatter plot
-        plt.scatter(j, coef[j], color=color, linewidths=0.5)
+        plt.scatter(j, coef[j], s=50, color=color, linewidths=0.5)
     # plot intercept
     plt.scatter(num_features, intercept, color='black', linewidths=0.25)
     # Make a black horizontal line at coef_thresh
@@ -420,8 +420,8 @@ def addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_holdout, time
         unshifted_events = X_holdout[:][X_setup_cols[largeCoefs[j]]]
         colo = colors[event_types.index(feature_names[largeCoefs[j]].split('_')[0])]
         # array of zeros the size of timepoints[unshifted_events.values == 1]
-        zeros = np.zeros(len(timepoints[unshifted_events.values == 1]))
-        plt.scatter(timepoints[unshifted_events.values == 1], zeros, color=colo, alpha=0.3, linewidth=0.1)
+        offsets = np.ones(len(timepoints[unshifted_events.values == 1])) * (event_types.index(feature_names[largeCoefs[j]].split('_')[0]) / len(event_types)) * 0.1
+        plt.scatter(timepoints[unshifted_events.values == 1], offsets, s=10, color=colo, alpha=0.3, linewidth=0.1)
 
 def addEventLinesToPlot(X_setup_cols, X_holdout, timepoints, event_types, colors, feature_names):
 
