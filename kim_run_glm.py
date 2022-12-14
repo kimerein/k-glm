@@ -8,6 +8,7 @@ import pandas as pd
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import seaborn as sns
 import itertools
 import threading, queue
@@ -19,6 +20,9 @@ from models import split_data
 from visualization import visualize
 
 def kim_run_glm():
+
+    #matplotlib.use('TkAgg')
+    matplotlib.rcParams['path.simplify_threshold'] = 0.7
 
     # define files to import from Matlab
     Xname=r'C:\Users\sabatini\Documents\behEvents.mat'
@@ -115,7 +119,6 @@ def kim_run_glm():
     # Add last n trials of X_design to X_design_sub
     X_design_sub = np.concatenate((X_design_sub, X_design[0:100, -(ysize[1]+1):]), axis=1)
     sns.heatmap(X_design_sub, cmap='viridis')
-    plt.show()
     print(X_design.shape)
 
     # Fix for interp error from Matlab
@@ -135,7 +138,7 @@ def kim_run_glm():
             else:
                 # get event type whichevent index into event_types
                 event_type = event_types[whichevent]
-                X_design.rename(columns={i: f'{event_type}_{counterforshifts}'}, inplace=True)
+                X_design.rename(columns={i: f'{event_type}_{nshifts[counterforshifts]}'}, inplace=True)
                 counterforshifts += 1
                 if counterforshifts == len(nshifts):
                     counterforshifts = 0
@@ -168,7 +171,9 @@ def kim_run_glm():
     backup_X_holdout = X_holdout.copy()
 
     # Iterate through neurons
-    for i in range(ysize[1]):
+
+    #for i in range(ysize[1]):
+    for i in range(1):
         # Name of neuron
         whichneuron = f'neuron{i}'
 
@@ -205,62 +210,9 @@ def kim_run_glm():
         # Fit model on training data, and score on holdout data
         glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
 
-        # Reconstruction
-        y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
-        # close figure
-        plt.close()
-        # Set style
-        sns.set(style='white', palette='colorblind', context='poster')
-        # make figure
-        plt.figure(figsize=(20, 10))
-        # subplot
-        plt.subplot(2, 1, 1)
-        plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
-        plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
-        plt.ylabel('Firing Rate (Hz)')
-        # title of this subplot
-        plt.title(f'Neuron {i} reconstrution of held-out data')
-        # Reconstruct the training data
-        y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
-        plt.close()
-        plt.subplot(2, 1, 2)
-        plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
-        plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
-        plt.ylabel('Firing Rate (Hz)')
-        plt.xlabel('Time (s)')
-        plt.legend()
-        plt.title(f'Neuron {i} reconstrution of training data')
-
-        # Get coefficients from model
-        coef = glm.coef_
-        # Get intercept from model
-        intercept = glm.intercept_
-        # Get number of features
-        num_features = len(coef)
-        # Get feature names
-        feature_names = X_setup.columns
-        # Plot coefficients
-        plt.figure(figsize=(20, 10))
-        # change color depending on feature name
-        # use a different color for each event_types
-        colors = sns.color_palette('colorblind', len(event_types))
-        # for each feature
-        for j in range(num_features):
-            # get feature name
-            feature_name = feature_names[j]
-            # get color
-            color = colors[event_types.index(feature_name.split('_')[0])]
-            # plot feature as a scatter plot
-            plt.scatter(j, coef[j], color=color)
-        # plot intercept
-        plt.scatter(num_features, intercept, color='black')
-        temp=[_ for _ in range(len(X_setup_cols)-1) if _ % len(nshifts) == 0]
-        namesofcols = list(X_setup_cols)
-        plt.xticks(range(0,num_features+1,len(nshifts)), [namesofcols[_] for _ in temp] + ['intercept'], rotation=45)
-        # Add y label
-        plt.ylabel('Coefficient')
-        plt.title(f'Neuron {i} coefficients')
-        plt.show()
+        # Reconstruction and plot results
+        coef_thresh=0.05
+        kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_setup, y_setup, X_setup_cols, nshifts, event_types, coef_thresh)
 
         input("Press Enter to continue...")
 
@@ -296,6 +248,8 @@ def kim_run_glm():
                             f' L1: {np.round(v_[2], 5)} — L2: {np.round(v_[3], 5)} — '+
                             f'Params: {v_[4]}'))
                     print(lss_spc + ']')
+
+    plt.show()
 
 def chooseGLMhyperparams():
 
@@ -383,6 +337,107 @@ def chooseGLMhyperparams():
 
     return glm_hyperparams
 
+def kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_setup, y_setup, X_setup_cols, nshifts, event_types, coef_thresh):
+
+    # change color depending on feature name
+    # use a different color for each event_types
+    colors = sns.color_palette('colorblind', len(event_types))
+    # Get feature names
+    feature_names = X_setup.columns
+
+    # Reconstruct the held-out data
+    y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
+    plt.close()
+    # Plot results
+    # Set style
+    sns.set(style='white', palette='colorblind', context='poster')
+    # make figure
+    plt.figure(figsize=(10, 5))
+    # subplot
+    plt.subplot(2, 1, 1)
+    # Get coefficients
+    coefs = glm.coef_
+    #addEventLinesToPlot(X_setup_cols, X_holdout, timepoints, event_types, colors, feature_names)
+    addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_holdout, timepoints, event_types, colors, feature_names)
+    plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Pred', alpha=0.5)
+    plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    plt.ylabel('Firing Rate (Hz)')
+    # title of this subplot
+    plt.title(f'Neuron {i} reconstrution of held-out data')
+    # Reconstruct the training data
+    y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
+    plt.close()
+    plt.subplot(2, 1, 2)
+    #addEventLinesToPlot(X_setup_cols, X_setup, timepoints, event_types, colors, feature_names)
+    addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_setup, timepoints, event_types, colors, feature_names)
+    plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Pred', alpha=0.5)
+    plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    plt.ylabel('Firing Rate (Hz)')
+    plt.xlabel('Time (s)')
+    plt.legend(loc='upper right')
+    plt.title(f'Neuron {i} reconstrution of training data')
+    plt.tight_layout()
+
+    # Get coefficients from model
+    coef = glm.coef_
+    # Get intercept from model
+    intercept = glm.intercept_
+    # Get number of features
+    num_features = len(coef)
+    # Plot coefficients
+    plt.figure(figsize=(10, 5))
+    # for each feature
+    for j in range(num_features):
+        # get feature name
+        feature_name = feature_names[j]
+        # get color
+        color = colors[event_types.index(feature_name.split('_')[0])]
+        # plot feature as a scatter plot
+        plt.scatter(j, coef[j], color=color, linewidths=0.5)
+    # plot intercept
+    plt.scatter(num_features, intercept, color='black', linewidths=0.25)
+    # Make a black horizontal line at coef_thresh
+    plt.axhline(y=coef_thresh, color='black', linestyle='--')
+    plt.axhline(y=-coef_thresh, color='black', linestyle='--')
+    temp=[_ for _ in range(len(X_setup_cols)-1) if _ % len(nshifts) == 0]
+    namesofcols = list(X_setup_cols)
+    plt.xticks(range(0,num_features+1,len(nshifts)), [namesofcols[_] for _ in temp] + ['intercept'], rotation=45)
+    # Make text on x axis smaller
+    plt.tick_params(axis='x', labelsize=8)
+    # Add y label
+    plt.ylabel('Coefficient')
+    plt.title(f'Neuron {i} coefficients')
+
+def addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_holdout, timepoints, event_types, colors, feature_names):
+
+    # Find behavior events types, i.e., columns of X_setup_cols, with large coefficients
+    largeCoefs = [_ for _, s in enumerate(coefs) if abs(coefs[_]) > coef_thresh]
+    timepoints = timepoints[0:len(X_holdout)]
+    # Plot vertical lines at the times of the events
+    for j in range(len(largeCoefs)):
+        # Get column of X_holdout corresponding to this event type
+        # Get X_holdout column values for this event type
+        unshifted_events = X_holdout[:][X_setup_cols[largeCoefs[j]]]
+        colo = colors[event_types.index(feature_names[largeCoefs[j]].split('_')[0])]
+        # array of zeros the size of timepoints[unshifted_events.values == 1]
+        zeros = np.zeros(len(timepoints[unshifted_events.values == 1]))
+        plt.scatter(timepoints[unshifted_events.values == 1], zeros, color=colo, alpha=0.3, linewidth=0.1)
+
+def addEventLinesToPlot(X_setup_cols, X_holdout, timepoints, event_types, colors, feature_names):
+
+    # Find elements of X_setup_cols with '_0' in them
+    zeroShiftAt = [_ for _, s in enumerate(X_setup_cols) if '_0' in s]
+    # Plot vertical lines at the times of the events
+    for j in range(len(zeroShiftAt)):
+        # Get column of X_holdout corresponding to this event type
+        # Get X_holdout column values for this event type
+        unshifted_events = X_holdout[:][X_setup_cols[zeroShiftAt[j]]]
+        colo = colors[event_types.index(feature_names[zeroShiftAt[j]].split('_')[0])]
+        # For all unshifted_events, plot a vertical line
+        for k in range(len(unshifted_events.values)):
+            if unshifted_events.values[k] == 1:
+                plt.scatter(timepoints[k], 0, color=colo, alpha=0.3, linewidth=0.1)
+                #plt.axvline(timepoints[k], color=colo, alpha=0.3, linewidth=0.5)
 
 def just_beginning_of_behavior_events(X):
 
@@ -451,7 +506,6 @@ def downsample_before_design_matrix(X, y, bin):
     
     # Plot last column of X
     plt.plot(newX[:,-1])
-    plt.show()
 
     return X, y
 
