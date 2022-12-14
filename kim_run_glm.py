@@ -155,8 +155,6 @@ def kim_run_glm():
 
     res = {} # results dictionary
 
-    whichneuron = 'neuron1'
-
     # Split data into setup (training) and holdout (test) sets
     np.random.seed(30186)
 
@@ -172,84 +170,100 @@ def kim_run_glm():
     X_neuron_cols = [col for col in dfrel_holdout.columns if 'neuron' in col]
     # Use X_setup_cols to subset dfrel_setup and dfrel_holdout
     X_setup, X_holdout = dfrel_setup[X_setup_cols].copy(), dfrel_holdout[X_setup_cols].copy()
-    y_setup, y_holdout = dfrel_setup[whichneuron].copy(),  dfrel_holdout[whichneuron].copy()
 
-    # Show size of X_holdout
-    print(X_holdout.shape)
-    # Show size of X_setup
-    print(X_setup.shape)
+    backup_X_setup = X_setup.copy()
+    backup_X_holdout = X_holdout.copy()
 
-    # Josh's code -- indices for each fold of cross validation
-    kfold_cv_idx = split_data.cv_idx_by_trial_id(X_setup,
+    # Iterate through neurons
+    for i in range(ysize[1]):
+        # Name of neuron
+        whichneuron = f'neuron{i}'
+
+        X_setup = backup_X_setup.copy()
+        X_holdout = backup_X_holdout.copy()
+
+        y_setup, y_holdout = dfrel_setup[whichneuron].copy(),  dfrel_holdout[whichneuron].copy()
+
+        # Show size of X_holdout
+        # print(X_holdout.shape)
+        # Show size of X_setup
+        # print(X_setup.shape)
+
+        # Josh's code -- indices for each fold of cross validation
+        kfold_cv_idx = split_data.cv_idx_by_trial_id(X_setup,
                                                 y=y_setup, 
                                                 trial_id_columns=['nTrial'],
                                                 num_folds=folds, 
                                                 test_size=pgss)
 
-    X_design['holdout_mask'] = holdout_mask  # to reproduce splits after
+        X_design['holdout_mask'] = holdout_mask  # to reproduce splits after
         
-    # Drop nTrial column from X_setup. (It is only used for group 
-    # identification in group/shuffle/split)
-    X_setup = X_setup.drop(columns=['nTrial']) 
-    X_holdout = X_holdout.drop(columns=['nTrial']) 
+        # Drop nTrial column from X_setup. (It is only used for group 
+        # identification in group/shuffle/split)
+        X_setup = X_setup.drop(columns=['nTrial']) 
+        X_holdout = X_holdout.drop(columns=['nTrial']) 
 
-    # Run GLM
-    best_score, _, best_params, best_model, _ = sglm_cv.simple_cv_fit(X_setup, y_setup, kfold_cv_idx, glm_hyperparams, model_type='Normal', verbose=1, score_method=score_method)
+        # Run GLM
+        best_score, _, best_params, best_model, _ = sglm_cv.simple_cv_fit(X_setup, y_setup, kfold_cv_idx, glm_hyperparams, model_type='Normal', verbose=1, score_method=score_method)
 
-    # Print out best model info
-    print_best_model_info(X_setup, best_score, best_params, best_model, start)
+        # Print out best model info
+        print_best_model_info(X_setup, best_score, best_params, best_model, start)
 
-    # Fit model on training data, and score on holdout data
-    glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
+        # Fit model on training data, and score on holdout data
+        glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
 
-    # Reconstruction
-    y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
-    plt.show()
-    sns.set(style='white', palette='colorblind', context='poster')
-    plt.plot(pred, label='Predicted Signal', alpha=0.5)
-    plt.plot(y_true.values, label='True Signal', alpha=0.5)
-    plt.show()
-    # Reconstruct the training data
-    y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
-    plt.show()
-    plt.plot(pred, label='Predicted Signal', alpha=0.5)
-    plt.plot(y_true.values, label='True Signal', alpha=0.5)
-    plt.show()
+        # Reconstruction
+        y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
+        # close figure
+        plt.close()
+        sns.set(style='white', palette='colorblind', context='poster')
+        # make figure
+        plt.figure(figsize=(10, 5))
+        plt.plot(pred, label='Predicted Signal', alpha=0.5)
+        plt.plot(y_true.values, label='True Signal', alpha=0.5)
+        plt.show()
+        # Reconstruct the training data
+        y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
+        plt.close()
+        plt.figure(figsize=(10, 5))
+        plt.plot(pred, label='Predicted Signal', alpha=0.5)
+        plt.plot(y_true.values, label='True Signal', alpha=0.5)
+        plt.show()
 
-    input("Press Enter to continue...")
+        input("Press Enter to continue...")
 
-    # Collect results
-    # Get time and date string
-    run_id = pd.to_datetime('today')
-    print("Run ID:", run_id)
-    res[f'{run_id}'] = {'holdout_score':holdout_score,
+        # Collect results
+        # Get time and date string
+        run_id = pd.to_datetime('today')
+        print("Run ID:", run_id)
+        res[f'{run_id}'] = {'holdout_score':holdout_score,
                         'holdout_neg_mse_score':holdout_neg_mse_score,
                         'best_score':best_score,
                         'best_params':best_params}
     
-    # Save model metadata
-    model_metadata = pd.DataFrame({'score_train':glm.r2_score(X_setup, y_setup), 
+        # Save model metadata
+        model_metadata = pd.DataFrame({'score_train':glm.r2_score(X_setup, y_setup), 
                             'score_gss':best_score, 
                             'score_holdout':glm.r2_score(X_holdout, y_holdout),
                             'hyperparams': [best_params],
                             'gssids': [kfold_cv_idx]})
 
-    # For every file iterated, for every result value, for every model fitted, print the reslts
-    print(f'Final Results:')
-    for k in res:
-        print(f'> {k}') # print key, filename
-        for k_ in res[k]:
-            if type(res[k][k_]) != list:
-                print(f'>> {k_}: {res[k][k_]}')
-            else:
-                lst_str_setup = f'>> {k_}: ['
-                lss_spc = ' '*(len(lst_str_setup)-1)
-                print(lst_str_setup)
-                for v_ in res[k][k_]:
-                    print((f'{lss_spc} R^2: {np.round(v_[0], 5)} — MSE: {np.round(v_[1], 5)} —'+
-                        f' L1: {np.round(v_[2], 5)} — L2: {np.round(v_[3], 5)} — '+
-                        f'Params: {v_[4]}'))
-                print(lss_spc + ']')
+        # For every file iterated, for every result value, for every model fitted, print the reslts
+        print(f'Final Results:')
+        for k in res:
+            print(f'> {k}') # print key, filename
+            for k_ in res[k]:
+                if type(res[k][k_]) != list:
+                    print(f'>> {k_}: {res[k][k_]}')
+                else:
+                    lst_str_setup = f'>> {k_}: ['
+                    lss_spc = ' '*(len(lst_str_setup)-1)
+                    print(lst_str_setup)
+                    for v_ in res[k][k_]:
+                        print((f'{lss_spc} R^2: {np.round(v_[0], 5)} — MSE: {np.round(v_[1], 5)} —'+
+                            f' L1: {np.round(v_[2], 5)} — L2: {np.round(v_[3], 5)} — '+
+                            f'Params: {v_[4]}'))
+                    print(lss_spc + ']')
 
 
 def training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params):
