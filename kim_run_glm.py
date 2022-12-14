@@ -68,13 +68,16 @@ def kim_run_glm():
     folds = 5  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
     pgss = None  # proportion of data to use for generalized cross validation     
-    score_method = 'r2' # 'mse' or 'r2'
-    glm_hyperparams = [{
-        'alpha': 0.0, # 0 is OLS
-        'l1_ratio': 0.0,
-        'max_iter': 1000,
-        'fit_intercept': False
-    }]  # hyperparameters for glm
+    score_method = 'mse' # 'mse' or 'r2'
+    # Alpha = 0 : OLS
+    # Alpha != 0 & l1 ratio = 0 → ridge
+    # Alpha != 0 & l1 ratio != 0 → lasso
+    # If using ElasticNet
+    # Minimizes the objective function:
+    # 1 / (2 * n_samples) * ||y - Xw||^2_2
+    # + alpha * l1_ratio * ||w||_1
+    # + 0.5 * alpha * (1 - l1_ratio) * ||w||^2_2
+    glm_hyperparams = chooseGLMhyperparams()
 
     # Keep track of time
     start = time.time()
@@ -132,7 +135,7 @@ def kim_run_glm():
             else:
                 # get event type whichevent index into event_types
                 event_type = event_types[whichevent]
-                X_design.rename(columns={i: f'{event_type}{counterforshifts}'}, inplace=True)
+                X_design.rename(columns={i: f'{event_type}_{counterforshifts}'}, inplace=True)
                 counterforshifts += 1
                 if counterforshifts == len(nshifts):
                     counterforshifts = 0
@@ -156,7 +159,7 @@ def kim_run_glm():
     # Exclude columns with 'neuron' in the name
     X_setup_cols = [col for col in dfrel_setup.columns if any(ev in col for ev in event_types) or 'nTrial' in col]
     # show names of columns of dfrel_setup that will be used for training
-    print(X_setup_cols)
+    #print(X_setup_cols)
     X_neuron_cols = [col for col in dfrel_holdout.columns if 'neuron' in col]
     # Use X_setup_cols to subset dfrel_setup and dfrel_holdout
     X_setup, X_holdout = dfrel_setup[X_setup_cols].copy(), dfrel_holdout[X_setup_cols].copy()
@@ -209,9 +212,9 @@ def kim_run_glm():
         # Set style
         sns.set(style='white', palette='colorblind', context='poster')
         # make figure
-        plt.figure(figsize=(10, 5))
+        plt.figure(figsize=(20, 10))
         # subplot
-        plt.subplot(3, 1, 1)
+        plt.subplot(2, 1, 1)
         plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
         plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
         plt.ylabel('Firing Rate (Hz)')
@@ -220,7 +223,7 @@ def kim_run_glm():
         # Reconstruct the training data
         y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
         plt.close()
-        plt.subplot(3, 1, 2)
+        plt.subplot(2, 1, 2)
         plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Predicted Signal', alpha=0.5)
         plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True Signal', alpha=0.5)
         plt.ylabel('Firing Rate (Hz)')
@@ -237,8 +240,25 @@ def kim_run_glm():
         # Get feature names
         feature_names = X_setup.columns
         # Plot coefficients
-        plt.subplot(3, 1, 3)
-        plt.plot(range(num_features), coef)
+        plt.figure(figsize=(20, 10))
+        # change color depending on feature name
+        # use a different color for each event_types
+        colors = sns.color_palette('colorblind', len(event_types))
+        # for each feature
+        for j in range(num_features):
+            # get feature name
+            feature_name = feature_names[j]
+            # get color
+            color = colors[event_types.index(feature_name.split('_')[0])]
+            # plot feature as a scatter plot
+            plt.scatter(j, coef[j], color=color)
+        # plot intercept
+        plt.scatter(num_features, intercept, color='black')
+        temp=[_ for _ in range(len(X_setup_cols)-1) if _ % len(nshifts) == 0]
+        namesofcols = list(X_setup_cols)
+        plt.xticks(range(0,num_features+1,len(nshifts)), [namesofcols[_] for _ in temp] + ['intercept'], rotation=45)
+        # Add y label
+        plt.ylabel('Coefficient')
         plt.title(f'Neuron {i} coefficients')
         plt.show()
 
@@ -276,6 +296,92 @@ def kim_run_glm():
                             f' L1: {np.round(v_[2], 5)} — L2: {np.round(v_[3], 5)} — '+
                             f'Params: {v_[4]}'))
                     print(lss_spc + ']')
+
+def chooseGLMhyperparams():
+
+    glm_hyperparams = [{
+        'alpha': 0.0, # 0 is OLS
+        'l1_ratio': 0.0,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.01, # 0 is OLS
+        'l1_ratio': 0.0,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.1, # 0 is OLS
+        'l1_ratio': 0.0,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 1, # 0 is OLS
+        'l1_ratio': 0.0,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.01, # 0 is OLS
+        'l1_ratio': 0.1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.1, # 0 is OLS
+        'l1_ratio': 0.1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 1, # 0 is OLS
+        'l1_ratio': 0.1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.01, # 0 is OLS
+        'l1_ratio': 0.5,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.1, # 0 is OLS
+        'l1_ratio': 0.5,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 1, # 0 is OLS
+        'l1_ratio': 0.5,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.01, # 0 is OLS
+        'l1_ratio': 0.9,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.1, # 0 is OLS
+        'l1_ratio': 0.9,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 1, # 0 is OLS
+        'l1_ratio': 0.9,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.01, # 0 is OLS
+        'l1_ratio': 1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 0.1, # 0 is OLS
+        'l1_ratio': 1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }, {
+        'alpha': 1, # 0 is OLS
+        'l1_ratio': 1,
+        'max_iter': 1000,
+        'fit_intercept': False
+    }]  # hyperparameters for glm
+
+    return glm_hyperparams
 
 
 def just_beginning_of_behavior_events(X):
