@@ -16,6 +16,7 @@ import time
 from models import sglm
 from models import sglm_cv
 from models import split_data
+from visualization import visualize
 
 def kim_run_glm():
 
@@ -43,24 +44,24 @@ def kim_run_glm():
 
     print("kim_run_glm beginning")
  
-    folds = 5  # k folds for cross validation
-    pholdout = 0.2 
-    pgss = 0.2      
-    score_method = 'mse' 
+    folds = 3  # k folds for cross validation
+    pholdout = 0.1  # proportion of data to hold out for testing 
+    pgss = None  # proportion of data to use for generalized cross validation     
+    score_method = 'r2' # 'mse' or 'r2'
     glm_hyperparams = [{
         'alpha': 0.0, # 0 is OLS
         'l1_ratio': 0.0,
         'max_iter': 1000,
         'fit_intercept': False
-    }]
+    }]  # hyperparameters for glm
 
     # Keep track of time
     start = time.time()
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-30
-    b=30
+    a=-100
+    b=100
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -134,6 +135,11 @@ def kim_run_glm():
     X_setup, X_holdout = dfrel_setup[X_setup_cols].copy(), dfrel_holdout[X_setup_cols].copy()
     y_setup, y_holdout = dfrel_setup[whichneuron].copy(),  dfrel_holdout[whichneuron].copy()
 
+    # Show size of X_holdout
+    print(X_holdout.shape)
+    # Show size of X_setup
+    print(X_setup.shape)
+
     # Josh's code -- indices for each fold of cross validation
     kfold_cv_idx = split_data.cv_idx_by_trial_id(X_setup,
                                                 y=y_setup, 
@@ -156,6 +162,27 @@ def kim_run_glm():
 
     # Fit model on training data, and score on holdout data
     glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
+
+    # Reconstruction
+    y_true, pred = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
+    plt.show()
+    sns.set(style='white', palette='colorblind', context='poster')
+    plt.figure(figsize=(20,10))
+    plt.plot(pred, label='Predicted Signal', alpha=0.5)
+    plt.plot(y_true.values, label='True Signal', alpha=0.5)
+    # Add zoom to plot
+    ax = plt.gca()
+    ax.xaxis.zoom(0.5)
+    plt.show()
+    # Reconstruct the training data
+    y_true, pred = visualize.reconstruct_signal(glm, X_setup, y_setup)
+    plt.show()
+    plt.figure(figsize=(20,10))
+    plt.plot(pred, label='Predicted Signal', alpha=0.5)
+    plt.plot(y_true.values, label='True Signal', alpha=0.5)
+    plt.show()
+
+    input("Press Enter to continue...")
 
     # Collect results
     # Get time and date string
