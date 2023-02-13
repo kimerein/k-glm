@@ -25,9 +25,10 @@ def kim_run_glm():
     matplotlib.rcParams['path.simplify_threshold'] = 0.7
 
     # define files to import from Matlab
-    Xname=r'C:\Users\sabatini\Documents\behEvents.mat'
-    yname=r'C:\Users\sabatini\Documents\neuron_data_matrix.mat'
-    timename=r'C:\Users\sabatini\Documents\timepoints.mat'
+    Xname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\behEvents.mat'
+    yname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\neuron_data_matrix.mat'
+    timename=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\timepoints.mat'
+    saveDir=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\output\'
 
     # read files
     X=scipy.io.loadmat(Xname)
@@ -67,6 +68,7 @@ def kim_run_glm():
 
     # For each column of X except the last column, take derivative of X
     # i.e., beginning of each event
+    # X up to excluding last column
     # X = just_beginning_of_behavior_events(X)
  
     folds = 5  # k folds for cross validation
@@ -88,8 +90,8 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-5
-    b=5
+    a=-3
+    b=30
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -172,8 +174,8 @@ def kim_run_glm():
 
     # Iterate through neurons
 
-    #for i in range(ysize[1]):
-    for i in [2]:
+    for i in range(ysize[1]):
+    #for i in [1]:
         # Name of neuron
         whichneuron = f'neuron{i}'
 
@@ -213,6 +215,7 @@ def kim_run_glm():
         # Reconstruction and plot results
         coef_thresh=0.05
         kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_setup, y_setup, X_setup_cols, nshifts, event_types, coef_thresh)
+        plt.show()
 
         input("Press Enter to continue...")
 
@@ -249,7 +252,13 @@ def kim_run_glm():
                             f'Params: {v_[4]}'))
                     print(lss_spc + ']')
 
-    plt.show()
+        # Save glm for this neuron
+        # Create Mat file
+        matfile = os.path.join(saveDir,f'{whichneuron}_glm.mat')
+        # Write to mat file
+        scipy.io.savemat(matfile, {'glm_coef': glm.coef_, 'feature_names': X_setup_cols, 'glm_intercept': glm.intercept_, 'model_metadata': model_metadata})
+
+    # plt.show()
 
 def chooseGLMhyperparams():
 
