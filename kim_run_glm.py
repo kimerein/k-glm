@@ -28,7 +28,7 @@ def kim_run_glm():
     Xname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\behEvents.mat'
     yname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\neuron_data_matrix.mat'
     timename=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\timepoints.mat'
-    saveDir=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\output\'
+    saveDir=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\output'
 
     # read files
     X=scipy.io.loadmat(Xname)
