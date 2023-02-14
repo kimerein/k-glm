@@ -121,8 +121,8 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-1
-    b=1
+    a=-4
+    b=30
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -131,12 +131,6 @@ def kim_run_glm():
         # Shift the data by i time steps
         # Exclude last column of X from design matrix, because this is trial number
         X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(shi).fillna(0).values
-
-        sns.heatmap(X_shifted[0:100, 0:100], cmap='viridis')
-        plt.show()
-
-        # pause code
-        input("Press Enter to continue...")
 
         # Add the shifted data to the design matrix
         # If i is the first element of nshifts, then X_design is X_shifted
@@ -157,7 +151,7 @@ def kim_run_glm():
     X_design_sub = X_design[0:100, 0:100]
     # Get number of columns of y
     # Add last n trials of X_design to X_design_sub
-    #X_design_sub = np.concatenate((X_design_sub, X_design[0:100, -(ysize[1]+1):]), axis=1)
+    X_design_sub = np.concatenate((X_design_sub, X_design[0:100, -(ysize[1]+1):]), axis=1)
     if suppressPlots == False:
         sns.heatmap(X_design_sub, cmap='viridis')
         # show
@@ -185,10 +179,12 @@ def kim_run_glm():
             else:
                 # get event type whichevent index into event_types
                 event_type = event_types[whichevent]
+                print(event_type)
                 X_design.rename(columns={i: f'{event_type}_{nshifts[counterforshifts]}'}, inplace=True)
                 counterforshifts += 1
                 if counterforshifts == len(nshifts):
                     whichevent += 1
+                    counterforshifts = 0
     print(X_design.head())
 
     # pause code
