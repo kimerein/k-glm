@@ -18,6 +18,7 @@ from models import sglm
 from models import sglm_cv
 from models import split_data
 from visualization import visualize
+import os
 
 def kim_run_glm():
 
@@ -25,10 +26,21 @@ def kim_run_glm():
     matplotlib.rcParams['path.simplify_threshold'] = 0.7
 
     # define files to import from Matlab
-    Xname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\behEvents.mat'
-    yname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\neuron_data_matrix.mat'
-    timename=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\timepoints.mat'
-    saveDir=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\output'
+    doShuffle=False
+    direcname=r'Z:\MICROSCOPE\Kim\WHISPER recs\Mar_6\20210618\SU aligned to behavior\forglm'
+    suppressPlots=False
+    # Combine directory name and file name
+    Xname=os.path.join(direcname, 'behEvents.mat')
+    yname=os.path.join(direcname, 'neuron_data_matrix.mat')
+    timename=os.path.join(direcname, 'timepoints.mat')
+    saveDir=os.path.join(direcname, 'output')
+    # If saveDir does not exist, create it
+    if not os.path.exists(saveDir):
+        os.makedirs(saveDir)
+    #Xname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\behEvents.mat'
+    #yname=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\neuron_data_matrix.mat'
+    #timename=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\timepoints.mat'
+    #saveDir=r'Z:\MICROSCOPE\Kim\WHISPER recs\87\20201224\SU aligned to behavior\forglm\output'
 
     # read files
     X=scipy.io.loadmat(Xname)
@@ -47,6 +59,25 @@ def kim_run_glm():
     y = np.transpose(y)
     timepoints = np.transpose(timepoints)
     time_step = np.median(np.diff(timepoints, 1, 0))
+
+    # if doShuffle is True, randomly permute trial numbers and randomly circshift behEvents
+    if doShuffle:
+        # Randomly permute trial numbers
+        # Get number of trials
+        nTrials = np.max(X[:, -1])
+        # Randomly permute trial numbers
+        newTrials = np.random.permutation(nTrials)
+        # Replace trial numbers in X with newTrials
+        X[:, -1] = newTrials[X[:, -1].astype(int) - 1]
+        # Randomly circshift behEvents
+        # Get number of columns in X, excluding trial number
+        nCols = X.shape[1] - 1
+        # Randomly circshift each column of X
+        for i in range(nCols):
+            # Get column of X
+            col = X[:, i]
+            # Randomly circshift column
+            X[:, i] = np.roll(col, np.random.randint(0, len(col)))
 
     # size of X
     Xsize = X.shape
@@ -90,20 +121,27 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-3
-    b=30
+    a=-1
+    b=1
     nshifts = list(range(a, b+1))
     print(nshifts)
 
     # Iterate through nshifts when nshifts is a list
-    for i in nshifts:        
+    for shi in nshifts:        
         # Shift the data by i time steps
         # Exclude last column of X from design matrix, because this is trial number
-        X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(nshifts[i]).fillna(0).values
+        X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(shi).fillna(0).values
+
+        sns.heatmap(X_shifted[0:100, 0:100], cmap='viridis')
+        plt.show()
+
+        # pause code
+        input("Press Enter to continue...")
+
         # Add the shifted data to the design matrix
         # If i is the first element of nshifts, then X_design is X_shifted
         # Otherwise, concatenate X_design and X_shifted
-        if i == nshifts[0]:
+        if shi == nshifts[0]:
             X_design = X_shifted
         else:
             X_design = np.concatenate((X_design, X_shifted), axis=1)
@@ -119,12 +157,19 @@ def kim_run_glm():
     X_design_sub = X_design[0:100, 0:100]
     # Get number of columns of y
     # Add last n trials of X_design to X_design_sub
-    X_design_sub = np.concatenate((X_design_sub, X_design[0:100, -(ysize[1]+1):]), axis=1)
-    sns.heatmap(X_design_sub, cmap='viridis')
+    #X_design_sub = np.concatenate((X_design_sub, X_design[0:100, -(ysize[1]+1):]), axis=1)
+    if suppressPlots == False:
+        sns.heatmap(X_design_sub, cmap='viridis')
+        # show
+        plt.show()
     print(X_design.shape)
 
     # Fix for interp error from Matlab
     X_design[X_design < 0.000001] = 0
+
+    # pause code
+    input("Press Enter to continue...")
+
 
     # Name last column of X_design 'nTrials'
     # Name neuron columns of X_design 'neuron0', 'neuron1', etc.
@@ -143,7 +188,6 @@ def kim_run_glm():
                 X_design.rename(columns={i: f'{event_type}_{nshifts[counterforshifts]}'}, inplace=True)
                 counterforshifts += 1
                 if counterforshifts == len(nshifts):
-                    counterforshifts = 0
                     whichevent += 1
     print(X_design.head())
 
@@ -213,11 +257,12 @@ def kim_run_glm():
         glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
 
         # Reconstruction and plot results
-        coef_thresh=0.05
-        kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_setup, y_setup, X_setup_cols, nshifts, event_types, coef_thresh)
-        plt.show()
+        if suppressPlots == False:
+            coef_thresh=0.05
+            kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_setup, y_setup, X_setup_cols, nshifts, event_types, coef_thresh)
+            plt.show()
 
-        input("Press Enter to continue...")
+        # input("Press Enter to continue...")
 
         # Collect results
         # Get time and date string
@@ -254,9 +299,17 @@ def kim_run_glm():
 
         # Save glm for this neuron
         # Create Mat file
-        matfile = os.path.join(saveDir,f'{whichneuron}_glm.mat')
+        if doShuffle:
+            matfile = os.path.join(saveDir,f'{whichneuron}_glm_shuffle.mat')
+        else:
+            matfile = os.path.join(saveDir,f'{whichneuron}_glm.mat')
         # Write to mat file
-        scipy.io.savemat(matfile, {'glm_coef': glm.coef_, 'feature_names': X_setup_cols, 'glm_intercept': glm.intercept_, 'model_metadata': model_metadata})
+        scipy.io.savemat(matfile, {'glm_coef': glm.coef_, 'feature_names': X_setup_cols, 'glm_intercept': glm.intercept_})
+        # Convert model_metadata to csv
+        if doShuffle:
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_shuffle_metadata.csv'))
+        else:
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_metadata.csv'))
 
     # plt.show()
 
