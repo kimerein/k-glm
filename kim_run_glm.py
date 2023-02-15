@@ -52,7 +52,8 @@ def kim_run_glm():
 
     # Kim's setup of beh events
     # list of event types
-    event_types = ['cue', 'opto', 'distract', 'reachzone', 'fidget', 'success', 'drop', 'missing', 'failure', 'chew']
+    # event_types = ['cue', 'opto', 'distract', 'reachzone', 'fidget', 'success', 'drop', 'missing', 'failure', 'chew']
+    event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss']
 
     # flip dimensions of X
     X = np.transpose(X)
@@ -105,7 +106,7 @@ def kim_run_glm():
     folds = 5  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
     pgss = None  # proportion of data to use for generalized cross validation     
-    score_method = 'mse' # 'mse' or 'r2'
+    score_method = 'r2' # 'mse' or 'r2'
     # Alpha = 0 : OLS
     # Alpha != 0 & l1 ratio = 0 → ridge
     # Alpha != 0 & l1 ratio != 0 → lasso
@@ -121,7 +122,7 @@ def kim_run_glm():
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-4
+    a=-9
     b=30
     nshifts = list(range(a, b+1))
     print(nshifts)
@@ -131,7 +132,6 @@ def kim_run_glm():
         # Shift the data by i time steps
         # Exclude last column of X from design matrix, because this is trial number
         X_shifted = pd.DataFrame(X).iloc[:, :-1].shift(shi).fillna(0).values
-
         # Add the shifted data to the design matrix
         # If i is the first element of nshifts, then X_design is X_shifted
         # Otherwise, concatenate X_design and X_shifted
@@ -139,6 +139,18 @@ def kim_run_glm():
             X_design = X_shifted
         else:
             X_design = np.concatenate((X_design, X_shifted), axis=1)
+
+    print(X_design.shape)
+
+    for i in range(0, len(event_types)):
+        temp = range(i, X_design.shape[1], len(event_types))
+        if i==0:
+            reordering = temp
+        else:
+            reordering = np.concatenate((reordering, temp), axis=0)
+    
+    print(reordering)
+    X_design[:, :] = X_design[:, reordering]
 
     # Add in neuron data to X_design
     X_design = np.concatenate((X_design, y), axis=1)
@@ -183,12 +195,12 @@ def kim_run_glm():
                 X_design.rename(columns={i: f'{event_type}_{nshifts[counterforshifts]}'}, inplace=True)
                 counterforshifts += 1
                 if counterforshifts == len(nshifts):
-                    whichevent += 1
                     counterforshifts = 0
+                    whichevent += 1
     print(X_design.head())
 
     # pause code
-    input("Press Enter to continue...")
+    # input("Press Enter to continue...")
 
     res = {} # results dictionary
 
@@ -214,8 +226,9 @@ def kim_run_glm():
 
     # Iterate through neurons
 
-    for i in range(ysize[1]):
-    #for i in [1]:
+    #for i in range(ysize[1]):
+    for i in [1]:
+        #try:
         # Name of neuron
         whichneuron = f'neuron{i}'
 
@@ -268,7 +281,7 @@ def kim_run_glm():
                         'holdout_neg_mse_score':holdout_neg_mse_score,
                         'best_score':best_score,
                         'best_params':best_params}
-    
+
         # Save model metadata
         model_metadata = pd.DataFrame({'score_train':glm.r2_score(X_setup, y_setup), 
                             'score_gss':best_score, 
@@ -306,6 +319,9 @@ def kim_run_glm():
             model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_shuffle_metadata.csv'))
         else:
             model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_metadata.csv'))
+        #except:
+        #    print(f'Error on {whichneuron}')
+        #    continue
 
     # plt.show()
 
@@ -418,7 +434,8 @@ def kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_
     #addEventLinesToPlot(X_setup_cols, X_holdout, timepoints, event_types, colors, feature_names)
     addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_holdout, timepoints, event_types, colors, feature_names)
     plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Pred', alpha=0.5)
-    plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    #plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True', alpha=0.5)
     plt.ylabel('Firing Rate (Hz)')
     # title of this subplot
     plt.title(f'Neuron {i} reconstrution of held-out data')
@@ -429,7 +446,8 @@ def kim_plot_glm_results(timepoints, X_holdout, y_holdout, time_step, i, glm, X_
     #addEventLinesToPlot(X_setup_cols, X_setup, timepoints, event_types, colors, feature_names)
     addLargeBetasAsLinesToPlot(X_setup_cols, coefs, coef_thresh, X_setup, timepoints, event_types, colors, feature_names)
     plt.plot(timepoints[0:len(pred)], pred / (1/time_step), label='Pred', alpha=0.5)
-    plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    #plt.plot(timepoints[0:len(y_true.values)], scipy.ndimage.gaussian_filter1d(y_true.values / (1/time_step), sigma=2), label='True', alpha=0.5)
+    plt.plot(timepoints[0:len(y_true.values)], y_true.values / (1/time_step), label='True', alpha=0.5)
     plt.ylabel('Firing Rate (Hz)')
     plt.xlabel('Time (s)')
     plt.legend(loc='upper right')
@@ -512,10 +530,10 @@ def just_beginning_of_behavior_events(X):
 
     newX = np.zeros(X.shape)
     for i in range(Xsize[1]-1):
-        newX[:,i] = np.concatenate((np.diff(X[:,i]), np.zeros(1)),axis=0)
+        newX[:,i] = np.concatenate((np.diff(X[:,i],1,0), np.zeros(1)),axis=0)
     newX[newX != 1] = 0
     # Add last column of X to newX
-    newX = np.concatenate((newX, X[:,-1].reshape(-1,1)), axis=1)
+    newX[:,-1] = X[:,-1]
     X=newX
 
     return X
