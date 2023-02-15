@@ -28,7 +28,7 @@ def kim_run_glm():
     # define files to import from Matlab
     doShuffle=False
     direcname=r'Z:\MICROSCOPE\Kim\WHISPER recs\Mar_6\20210618\SU aligned to behavior\forglm'
-    suppressPlots=False
+    suppressPlots=True
     # Combine directory name and file name
     Xname=os.path.join(direcname, 'behEvents.mat')
     yname=os.path.join(direcname, 'neuron_data_matrix.mat')
@@ -174,7 +174,7 @@ def kim_run_glm():
     X_design[X_design < 0.000001] = 0
 
     # pause code
-    input("Press Enter to continue...")
+    #input("Press Enter to continue...")
 
 
     # Name last column of X_design 'nTrials'
@@ -226,8 +226,8 @@ def kim_run_glm():
 
     # Iterate through neurons
 
-    #for i in range(ysize[1]):
-    for i in [1]:
+    for i in range(ysize[1]):
+    #for i in [1]:
         #try:
         # Name of neuron
         whichneuron = f'neuron{i}'
@@ -308,17 +308,18 @@ def kim_run_glm():
 
         # Save glm for this neuron
         # Create Mat file
+        # Make neuron numbering match Matlab indexing
         if doShuffle:
-            matfile = os.path.join(saveDir,f'{whichneuron}_glm_shuffle.mat')
+            matfile = os.path.join(saveDir,f'{whichneuron+1}_glm_shuffle.mat')
         else:
-            matfile = os.path.join(saveDir,f'{whichneuron}_glm.mat')
+            matfile = os.path.join(saveDir,f'{whichneuron+1}_glm.mat')
         # Write to mat file
         scipy.io.savemat(matfile, {'glm_coef': glm.coef_, 'feature_names': X_setup_cols, 'glm_intercept': glm.intercept_})
         # Convert model_metadata to csv
         if doShuffle:
-            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_shuffle_metadata.csv'))
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron+1}_glm_shuffle_metadata.csv'))
         else:
-            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_metadata.csv'))
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron+1}_glm_metadata.csv'))
         #except:
         #    print(f'Error on {whichneuron}')
         #    continue
