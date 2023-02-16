@@ -25,18 +25,18 @@ def kim_run_glm():
     # Read csv
     df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
     direcname = df.iloc[:, 7]
-    currexpts = range(287, 297)
+    currexpts = range(298, 308)
     currexpts = range(currexpts[0] - 1, currexpts[-1])
     for i in currexpts:
         currdirecname = direcname[i]
         print(currdirecname)
         if df.iloc[i,12]==1:
             continue
+        # Add 'forglm' to directory name
+        currdirecname = os.path.join(currdirecname, 'forglm')
         # If directory does not exist, skip
         if not os.path.exists(currdirecname):
             continue
-        # Add 'forglm' to directory name
-        currdirecname = os.path.join(currdirecname, 'forglm')
         kim_glm(currdirecname, doShuffle=False, suppressPlots=True)
 
 
