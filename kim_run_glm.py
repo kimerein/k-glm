@@ -21,14 +21,33 @@ from visualization import visualize
 import os
 
 def kim_run_glm():
+    
+    # Read csv
+    df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
+    direcname = df.iloc[:, 7]
+    currexpts = range(287, 297)
+    currexpts = range(currexpts[0] - 1, currexpts[-1])
+    for i in currexpts:
+        currdirecname = direcname[i]
+        print(currdirecname)
+        if df.iloc[i,12]==1:
+            continue
+        # If directory does not exist, skip
+        if not os.path.exists(currdirecname):
+            continue
+        # Add 'forglm' to directory name
+        currdirecname = os.path.join(currdirecname, 'forglm')
+        kim_glm(currdirecname, doShuffle=False, suppressPlots=True)
 
+
+def kim_glm(direcname, doShuffle=False, suppressPlots=True):
     #matplotlib.use('TkAgg')
     matplotlib.rcParams['path.simplify_threshold'] = 0.7
 
     # define files to import from Matlab
-    doShuffle=False
-    direcname=r'Z:\MICROSCOPE\Kim\WHISPER recs\Mar_6\20210618\SU aligned to behavior\forglm'
-    suppressPlots=True
+    #doShuffle=False
+    #direcname=r'Z:\MICROSCOPE\Kim\WHISPER recs\dLight4\20210120\SU aligned to behavior\forglm'
+    #suppressPlots=True
     # Combine directory name and file name
     Xname=os.path.join(direcname, 'behEvents.mat')
     yname=os.path.join(direcname, 'neuron_data_matrix.mat')
@@ -105,7 +124,8 @@ def kim_run_glm():
  
     folds = 5  # k folds for cross validation
     pholdout = 0.1  # proportion of data to hold out for testing 
-    pgss = None  # proportion of data to use for generalized cross validation     
+    pgss = None  # proportion of data to use for generalized cross validation  
+    # pgss = 0.1  # proportion of data to use for generalized cross validation     
     score_method = 'r2' # 'mse' or 'r2'
     # Alpha = 0 : OLS
     # Alpha != 0 & l1 ratio = 0 → ridge
@@ -309,17 +329,18 @@ def kim_run_glm():
         # Save glm for this neuron
         # Create Mat file
         # Make neuron numbering match Matlab indexing
+        whichneuron = f'neuron{i+1}'
         if doShuffle:
-            matfile = os.path.join(saveDir,f'{whichneuron+1}_glm_shuffle.mat')
+            matfile = os.path.join(saveDir,f'{whichneuron}_glm_shuffle.mat')
         else:
-            matfile = os.path.join(saveDir,f'{whichneuron+1}_glm.mat')
+            matfile = os.path.join(saveDir,f'{whichneuron}_glm.mat')
         # Write to mat file
         scipy.io.savemat(matfile, {'glm_coef': glm.coef_, 'feature_names': X_setup_cols, 'glm_intercept': glm.intercept_})
         # Convert model_metadata to csv
         if doShuffle:
-            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron+1}_glm_shuffle_metadata.csv'))
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_shuffle_metadata.csv'))
         else:
-            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron+1}_glm_metadata.csv'))
+            model_metadata.to_csv(os.path.join(saveDir,f'{whichneuron}_glm_metadata.csv'))
         #except:
         #    print(f'Error on {whichneuron}')
         #    continue
