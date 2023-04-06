@@ -25,15 +25,16 @@ def kim_run_glm():
     # Read csv
     df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
     direcname = df.iloc[:, 7]
-    currexpts = range(298, 308)
-    currexpts = range(currexpts[0] - 1, currexpts[-1])
+    currexpts = range(447, 450)
+    currexpts = range(currexpts[0] - 1, currexpts[-1] + 1)
     for i in currexpts:
         currdirecname = direcname[i]
         print(currdirecname)
         if df.iloc[i,12]==1:
             continue
         # Add 'forglm' to directory name
-        currdirecname = os.path.join(currdirecname, 'forglm')
+        #currdirecname = os.path.join(currdirecname, 'forglm')
+        currdirecname = os.path.join(currdirecname, 'forglm_trainingSet')
         # If directory does not exist, skip
         if not os.path.exists(currdirecname):
             continue
@@ -72,7 +73,8 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
     # Kim's setup of beh events
     # list of event types
     # event_types = ['cue', 'opto', 'distract', 'reachzone', 'fidget', 'success', 'drop', 'missing', 'failure', 'chew']
-    event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss']
+    #event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss']
+    event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss', 'cXsuc', 'cXdro', 'cXmis']
 
     # flip dimensions of X
     X = np.transpose(X)
@@ -142,8 +144,8 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-9
-    b=30
+    a=-20 #-9
+    b=50 #30
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -353,82 +355,82 @@ def chooseGLMhyperparams():
         'alpha': 0.0, # 0 is OLS
         'l1_ratio': 0.0,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.01, # 0 is OLS
         'l1_ratio': 0.0,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.1, # 0 is OLS
         'l1_ratio': 0.0,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 1, # 0 is OLS
         'l1_ratio': 0.0,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.01, # 0 is OLS
         'l1_ratio': 0.1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.1, # 0 is OLS
         'l1_ratio': 0.1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 1, # 0 is OLS
         'l1_ratio': 0.1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.01, # 0 is OLS
         'l1_ratio': 0.5,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.1, # 0 is OLS
         'l1_ratio': 0.5,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 1, # 0 is OLS
         'l1_ratio': 0.5,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.01, # 0 is OLS
         'l1_ratio': 0.9,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.1, # 0 is OLS
         'l1_ratio': 0.9,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 1, # 0 is OLS
         'l1_ratio': 0.9,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.01, # 0 is OLS
         'l1_ratio': 1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 0.1, # 0 is OLS
         'l1_ratio': 1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }, {
         'alpha': 1, # 0 is OLS
         'l1_ratio': 1,
         'max_iter': 1000,
-        'fit_intercept': False
+        'fit_intercept': True
     }]  # hyperparameters for glm
 
     return glm_hyperparams
