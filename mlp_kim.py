@@ -13,16 +13,16 @@ import torch.nn as nntorch
 def mlp_kim():
 
     # define files to import from Matlab
-    Xname=r'C:\Users\sabatini\Documents\tensor.mat'
-    yname=r'C:\Users\sabatini\Documents\allLabels.mat'
-    timename=r'C:\Users\sabatini\Documents\timepoints_for_tensor.mat'
-    holdout_frac=0.2 # fraction of data to hold out for testing
-    L2_alpha=0.0001
-    NNrank=0.5 # rank of the neural network
+    Xname=r'C:\Users\sabatini\Documents\currtens\tensor.mat'
+    yname=r'C:\Users\sabatini\Documents\currtens\allLabels.mat'
+    timename=r'C:\Users\sabatini\Documents\currtens\timepoints_for_tensor.mat'
+    holdout_frac=0.15 # fraction of data to hold out for testing
+    L2_alpha=0.001
+    NNrank=0.75 # rank of the neural network
     takeMoreData=2 # take more data from the classes with more trials
     nn_solver='adam' # 'lbfgs' or 'adam'
     maxIte=30000 # maximum number of iterations
-    learning_rate_for_torch=0.0001 # learning rate for torch
+    learning_rate_for_torch=0.00001 # learning rate for torch
         
     # read data from files
     X=scipy.io.loadmat(Xname)
@@ -66,22 +66,22 @@ def mlp_kim():
     if nminloc==0:
         idx0 = np.random.choice(np.where(y==0)[0], nmin-ntest, replace=True)
     else:
-        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 1
     if nminloc==1:
         idx1 = np.random.choice(np.where(y==1)[0], nmin-ntest, replace=True)
     else:
-        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 2
     if nminloc==2:
         idx2 = np.random.choice(np.where(y==2)[0], nmin-ntest, replace=True)
     else:
-        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 3
     if nminloc==3:
         idx3 = np.random.choice(np.where(y==3)[0], nmin-ntest, replace=True)
     else:
-        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     print('which are 0: ', np.where(y==0)[0])
     print('idx0: ', idx0)
     # Get the indices of the training trials
@@ -120,8 +120,7 @@ def mlp_kim():
 
     # Build and train a multilayer perceptron classifier with one hidden layer
     # with n_neurons neurons 
-    clf = nn.MLPClassifier(solver=nn_solver, alpha=L2_alpha, hidden_layer_sizes=(n_neurons,), max_iter=maxIte, random_state=1)
-    # Fit the model controlling for class imbalances
+    clf = nn.MLPClassifier(solver=nn_solver, alpha=L2_alpha, hidden_layer_sizes=(n_neurons,), max_iter=maxIte)
     clf.fit(X_train, y_train)
 
     # Print loss over iterations
@@ -135,6 +134,20 @@ def mlp_kim():
     # Compute the classification accuracy on the test data
     accuracy = clf.score(X_test, y_test)
     print('Accuracy: ', accuracy)
+
+    # Compute accuracy on time- and neuron-shuffled data
+    X_test_shuffled = np.zeros(X_test.shape)
+    for i in range(X_test.shape[0]):
+        X_test_shuffled[i,:] = np.random.permutation(X_test[i,:])
+    y_pred_shuffled = clf.predict(X_test_shuffled)
+    accuracy_shuffled = clf.score(X_test_shuffled, y_test)
+    print('Accuracy on time- and neuron-shuffled data: ', accuracy_shuffled)
+
+    # Compute the classification accuracy on the trial-shuffled data
+    y_test_shuffled = np.random.permutation(y_test)
+    y_pred_shuffled = clf.predict(X_test)
+    accuracy_shuffled = clf.score(X_test, y_test_shuffled)
+    print('Accuracy on trial-shuffled data: ', accuracy_shuffled)
 
     # Compute the confusion matrix
     cm = np.zeros((4,4))
@@ -173,7 +186,7 @@ def mlp_kim():
     y = y.T
     print(X.shape)
     print(y.shape)
-    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac, random_state=1)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac)
     print(X_train.shape)
     print(X_test.shape)
     print(y_train.shape)
@@ -185,16 +198,12 @@ def mlp_kim():
         nntorch.Linear(X_train.shape[1], n_neurons),
         nntorch.ReLU(),
         nntorch.Linear(n_neurons, 4),
-        nntorch.LogSoftmax(dim=1)
+        nntorch.Softmax(dim=1)
     )
     # Compute weights for each class
     print(y_train)
     class_w = sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
-    #class_w = np.zeros(4)
-    #for i in range(4):
-    #    class_w[i] = np.sum(y_train==i)/len(y_train)
     print(class_w)
-    class_w[0] = class_w[0]*2
 
     # Define the loss function
     loss_fn = nntorch.CrossEntropyLoss(weight=torch.from_numpy(class_w).float())
@@ -202,7 +211,6 @@ def mlp_kim():
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_for_torch, weight_decay=L2_alpha)
     # Convert the data to torch tensors
     X_train = torch.from_numpy(X_train).float()
-    X_test = torch.from_numpy(X_test).float()
     y_train = torch.from_numpy(y_train).long()
     # Train the model
     loss_torch = []
@@ -227,12 +235,23 @@ def mlp_kim():
     plt.ylabel('Loss')
     plt.show()
     # Predict the labels of the test data
-    y_pred = model(X_test)
+    y_pred = model(torch.from_numpy(X_test).float())
     print(np.argmax(y_pred.detach().numpy(), axis=1))
     print(y_test)
     # Compute the classification accuracy on the test data
     accuracy = np.mean(np.argmax(y_pred.detach().numpy(), axis=1) == y_test)
     print('Accuracy: ', accuracy)
+    # Compute accuracy on trial-shuffled data
+    y_pred_shuffled = model(torch.from_numpy(X_test[np.random.permutation(X_test.shape[0]),:]).float())
+    accuracy_shuffled = np.mean(np.argmax(y_pred_shuffled.detach().numpy(), axis=1) == y_test)
+    print('Accuracy on shuffled data: ', accuracy_shuffled)
+    # Compute accuracy on time- and neuron-shuffled data
+    X_test_shuffled = np.zeros(X_test.shape)
+    for i in range(X_test.shape[0]):
+        X_test_shuffled[i,:] = np.random.permutation(X_test[i,:])
+    y_pred_shuffled = model(torch.from_numpy(X_test_shuffled).float())
+    accuracy_shuffled = np.mean(np.argmax(y_pred_shuffled.detach().numpy(), axis=1) == y_test)
+    print('Accuracy on time- and neuron-shuffled data: ', accuracy_shuffled)
     # Compute the confusion matrix
     cm = np.zeros((4,4))
     for i in range(len(y_test)):
