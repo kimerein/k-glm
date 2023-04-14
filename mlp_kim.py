@@ -16,7 +16,7 @@ def mlp_kim():
     Xname=r'C:\Users\sabatini\Documents\currtens\tensor.mat'
     yname=r'C:\Users\sabatini\Documents\currtens\allLabels.mat'
     timename=r'C:\Users\sabatini\Documents\currtens\timepoints_for_tensor.mat'
-    holdout_frac=0.15 # fraction of data to hold out for testing
+    holdout_frac=0.5 # fraction of data to hold out for testing
     L2_alpha=0.001
     NNrank=0.75 # rank of the neural network
     takeMoreData=2 # take more data from the classes with more trials
