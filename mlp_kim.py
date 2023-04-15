@@ -189,6 +189,7 @@ def mlp_kim():
     print(X_test.shape)
     print(y_train.shape)
     print(y_test.shape)
+    backup_y_train = y_train
 
     # Make a multilayer perceptron classifier with one hidden layer using pytorch
     # Define the neural network
@@ -269,6 +270,7 @@ def mlp_kim():
 
     # Now train network on the trial label-shuffled data
     # Shuffle the labels of the training data
+    y_train = backup_y_train
     y_train_shuffled = np.random.permutation(y_train)
     # Define the neural network
     model=nntorch.Sequential(
@@ -277,11 +279,17 @@ def mlp_kim():
         nntorch.Linear(n_neurons, 4),
         nntorch.Softmax(dim=1)
     )
+    # Compute weights for each class
+    print(y_train_shuffled)
     class_w = sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train_shuffled), y=y_train_shuffled)
+    print(class_w)
     # Define the loss function
     loss_fn = nntorch.CrossEntropyLoss(weight=torch.from_numpy(class_w).float())
     # Define the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_for_torch, weight_decay=L2_alpha)
+    # Convert the data to torch tensors
+    #X_train = torch.from_numpy(X_train).float()
+    y_train_shuffled = torch.from_numpy(y_train_shuffled).long()
     # Train the model
     loss_torch = []
     for t in range(maxIte):
