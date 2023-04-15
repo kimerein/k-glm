@@ -16,13 +16,16 @@ def mlp_kim():
     Xname=r'C:\Users\sabatini\Documents\currtens\tensor.mat'
     yname=r'C:\Users\sabatini\Documents\currtens\allLabels.mat'
     timename=r'C:\Users\sabatini\Documents\currtens\timepoints_for_tensor.mat'
-    holdout_frac=0.5 # fraction of data to hold out for testing
+    holdout_frac_smallClass=0.15 # fraction of data to hold out for testing but only least represented class
+    holdout_frac=0.2 # fraction of data to hold out for testing
     L2_alpha=0.001
     NNrank=0.75 # rank of the neural network
-    takeMoreData=2 # take more data from the classes with more trials
+    #Nneurons=32 # number of neurons in the hidden layer
+    takeMoreData=2 # take this fraction of data from the classes with more trials
     nn_solver='adam' # 'lbfgs' or 'adam'
-    maxIte=30000 # maximum number of iterations
-    learning_rate_for_torch=0.00001 # learning rate for torch
+    maxIte=60000 # maximum number of iterations
+    lr=0.0001 # learning rate for sklearn
+    learning_rate_for_torch=0.0001 # learning rate for torch
         
     # read data from files
     X=scipy.io.loadmat(Xname)
@@ -57,8 +60,8 @@ def mlp_kim():
     nminloc = np.argmin([n0,n1,n2,n3])
     print('nminloc: ', nminloc)
     print('Class with fewest trials: ', nminloc)
-    # Get holdout_frac % of the minimum number of trials
-    ntest = int(holdout_frac*nmin)
+    # Get holdout_frac_smallClass % of the minimum number of trials
+    ntest = int(holdout_frac_smallClass*nmin)
     print('Number of test trials: ', ntest)
     print('Number of training trials: ', nmin-ntest)
     # Find which trials of y are class 0
@@ -66,22 +69,22 @@ def mlp_kim():
     if nminloc==0:
         idx0 = np.random.choice(np.where(y==0)[0], nmin-ntest, replace=True)
     else:
-        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=True)
+        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=False)
     # Get random nmin-ntest trials of class 1
     if nminloc==1:
         idx1 = np.random.choice(np.where(y==1)[0], nmin-ntest, replace=True)
     else:
-        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=True)
+        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=False)
     # Get random nmin-ntest trials of class 2
     if nminloc==2:
         idx2 = np.random.choice(np.where(y==2)[0], nmin-ntest, replace=True)
     else:
-        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=True)
+        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=False)
     # Get random nmin-ntest trials of class 3
     if nminloc==3:
         idx3 = np.random.choice(np.where(y==3)[0], nmin-ntest, replace=True)
     else:
-        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=True)
+        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=False)
     print('which are 0: ', np.where(y==0)[0])
     print('idx0: ', idx0)
     # Get the indices of the training trials
@@ -102,6 +105,7 @@ def mlp_kim():
     y_test = np.squeeze(y_test)
 
     n_neurons=NNrank*X_train.shape[0]*X_train.shape[1] # number of neurons in the hidden layer
+    #n_neurons=Nneurons
     # Floor of n_neurons
     n_neurons = int(n_neurons)
     print('Number of neurons in the hidden layer: ', n_neurons)
@@ -120,7 +124,7 @@ def mlp_kim():
 
     # Build and train a multilayer perceptron classifier with one hidden layer
     # with n_neurons neurons 
-    clf = nn.MLPClassifier(solver=nn_solver, alpha=L2_alpha, hidden_layer_sizes=(n_neurons,), max_iter=maxIte)
+    clf = nn.MLPClassifier(solver=nn_solver, alpha=L2_alpha, hidden_layer_sizes=(n_neurons,), max_iter=maxIte, learning_rate_init=lr, learning_rate='constant')
     clf.fit(X_train, y_train)
 
     # Print loss over iterations
@@ -166,13 +170,7 @@ def mlp_kim():
     plt.ylabel('Predicted')
     plt.show()
 
-    # Compute the precision and recall
-    precision = cm[1,1]/(cm[1,1]+cm[0,1])
-    recall = cm[1,1]/(cm[1,1]+cm[1,0])
-    print('Precision: ', precision)
-    print('Recall: ', recall)
-
-
+    
     # Now do the same thing with pytorch
     # Cross-validation
     # Divide into training and test sets with holdout_frac of the data in the test set
@@ -186,7 +184,7 @@ def mlp_kim():
     y = y.T
     print(X.shape)
     print(y.shape)
-    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac) #, stratify=y)
     print(X_train.shape)
     print(X_test.shape)
     print(y_train.shape)
@@ -244,7 +242,7 @@ def mlp_kim():
     # Compute accuracy on trial-shuffled data
     y_pred_shuffled = model(torch.from_numpy(X_test[np.random.permutation(X_test.shape[0]),:]).float())
     accuracy_shuffled = np.mean(np.argmax(y_pred_shuffled.detach().numpy(), axis=1) == y_test)
-    print('Accuracy on shuffled data: ', accuracy_shuffled)
+    print('Accuracy on trial-shuffled data: ', accuracy_shuffled)
     # Compute accuracy on time- and neuron-shuffled data
     X_test_shuffled = np.zeros(X_test.shape)
     for i in range(X_test.shape[0]):
@@ -267,12 +265,6 @@ def mlp_kim():
     plt.xlabel('True')
     plt.ylabel('Predicted')
     plt.show()
-    # Compute the precision and recall
-    precision = cm[1,1]/(cm[1,1]+cm[0,1])
-    recall = cm[1,1]/(cm[1,1]+cm[1,0])
-    print('Precision: ', precision)
-    print('Recall: ', recall)
-
 
 
 
