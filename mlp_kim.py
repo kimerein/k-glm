@@ -317,6 +317,22 @@ def mlp_kim():
     # Compute the classification accuracy on the test data
     accuracy = np.mean(np.argmax(y_pred.detach().numpy(), axis=1) == y_test)
     print('Accuracy for network trained on trial shuffle: ', accuracy)
+    # Make confusion matrix
+    cm = np.zeros((4,4))
+    for i in range(len(y_test)):
+        cm[y_test[i],np.argmax(y_pred.detach().numpy(), axis=1)[i]] += 1
+    print('Confusion matrix: ', cm)
+    # Normalize first column of confusion matrix by its sum
+    # Iterate over all rows of confusion matrix
+    for i in range(cm.shape[0]):
+        cm[i,:] = cm[i,:]/np.sum(cm[i,:])
+    print('Normalized confusion matrix: ', cm)
+    # Display the confusion matrix as a heatmap
+    sns.heatmap(cm, cmap='jet')
+    plt.xlabel('True')
+    plt.ylabel('Predicted')
+    plt.show()
+    
 
 
 # # Make a neural network perceptron with one hidden layer using jax
