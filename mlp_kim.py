@@ -16,15 +16,15 @@ def mlp_kim():
     Xname=r'C:\Users\sabatini\Documents\currtens\tensor.mat'
     yname=r'C:\Users\sabatini\Documents\currtens\allLabels.mat'
     timename=r'C:\Users\sabatini\Documents\currtens\timepoints_for_tensor.mat'
-    holdout_frac_smallClass=0.15 # fraction of data to hold out for testing but only least represented class
-    holdout_frac=0.2 # fraction of data to hold out for testing
+    holdout_frac_smallClass=0.2 # fraction of data to hold out for testing but only least represented class
+    holdout_frac=0.5 # fraction of data to hold out for testing
     L2_alpha=0.001
-    NNrank=0.75 # rank of the neural network
-    #Nneurons=32 # number of neurons in the hidden layer
+    #NNrank=0.0005 #0.0125 #0.0005 #0.25 #0.75 # rank of the neural network
+    Nneurons=2 #32 # number of neurons in the hidden layer
     takeMoreData=2 # take this fraction of data from the classes with more trials
     nn_solver='adam' # 'lbfgs' or 'adam'
     maxIte=60000 # maximum number of iterations
-    lr=0.0001 # learning rate for sklearn
+    lr=0.001 # learning rate for sklearn
     learning_rate_for_torch=0.0001 # learning rate for torch
         
     # read data from files
@@ -104,8 +104,8 @@ def mlp_kim():
     y_train = np.squeeze(y_train)
     y_test = np.squeeze(y_test)
 
-    n_neurons=NNrank*X_train.shape[0]*X_train.shape[1] # number of neurons in the hidden layer
-    #n_neurons=Nneurons
+    #n_neurons=NNrank*X_train.shape[0]*X_train.shape[1] # number of neurons in the hidden layer
+    n_neurons=Nneurons
     # Floor of n_neurons
     n_neurons = int(n_neurons)
     print('Number of neurons in the hidden layer: ', n_neurons)
@@ -267,7 +267,48 @@ def mlp_kim():
     plt.show()
 
 
-
+    # Now train network on the trial label-shuffled data
+    # Shuffle the labels of the training data
+    y_train_shuffled = np.random.permutation(y_train)
+    # Define the neural network
+    model=nntorch.Sequential(
+        nntorch.Linear(X_train.shape[1], n_neurons),
+        nntorch.ReLU(),
+        nntorch.Linear(n_neurons, 4),
+        nntorch.Softmax(dim=1)
+    )
+    class_w = sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train_shuffled), y=y_train_shuffled)
+    # Define the loss function
+    loss_fn = nntorch.CrossEntropyLoss(weight=torch.from_numpy(class_w).float())
+    # Define the optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_for_torch, weight_decay=L2_alpha)
+    # Train the model
+    loss_torch = []
+    for t in range(maxIte):
+        # Forward pass
+        y_pred = model(X_train)
+        # Compute and print loss
+        loss = loss_fn(y_pred, y_train_shuffled)
+        if t % 1000 == 0:
+            print(t, loss.item())
+        # Zero the gradients before running the backward pass.
+        optimizer.zero_grad()
+        # Backward pass
+        loss.backward()
+        # Update the weights
+        optimizer.step()
+        # Save the loss
+        loss_torch.append(loss.item())
+    # Plot the loss over iterations
+    plt.plot(loss_torch)
+    plt.xlabel('Iteration')
+    plt.ylabel('Loss')
+    plt.show()
+    # Predict the labels of the test data
+    y_pred = model(torch.from_numpy(X_test).float())
+    # Compute the classification accuracy on the test data
+    accuracy = np.mean(np.argmax(y_pred.detach().numpy(), axis=1) == y_test)
+    print('Accuracy for network trained on trial shuffle: ', accuracy)
 
 
 # # Make a neural network perceptron with one hidden layer using jax
