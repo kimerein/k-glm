@@ -17,15 +17,15 @@ def mlp_kim():
     yname=r'C:\Users\sabatini\Documents\currtens\allLabels.mat'
     timename=r'C:\Users\sabatini\Documents\currtens\timepoints_for_tensor.mat'
     holdout_frac_smallClass=0.2 # fraction of data to hold out for testing but only least represented class
-    holdout_frac=0.5 # fraction of data to hold out for testing
-    L2_alpha=0.001
+    holdout_frac=0.3 # fraction of data to hold out for testing
+    L2_alpha=0.0005 #1 # be very careful with this!! bad if too big
     #NNrank=0.0005 #0.0125 #0.0005 #0.25 #0.75 # rank of the neural network
-    Nneurons=2 #32 # number of neurons in the hidden layer
+    Nneurons=4 #2 #32 # number of neurons in the hidden layer
     takeMoreData=2 # take this fraction of data from the classes with more trials
     nn_solver='adam' # 'lbfgs' or 'adam'
     maxIte=60000 # maximum number of iterations
     lr=0.001 # learning rate for sklearn
-    learning_rate_for_torch=0.0001 # learning rate for torch
+    learning_rate_for_torch=0.0001 #0.0001 # learning rate for torch
         
     # read data from files
     X=scipy.io.loadmat(Xname)
@@ -47,7 +47,7 @@ def mlp_kim():
 
     # print(X)
 
-    # Cross-validation
+    """ # Cross-validation
     # Split the data into training and test sets (30% held out for testing)
     # Find the number of trials of each class
     n0 = np.sum(y==0)
@@ -69,22 +69,22 @@ def mlp_kim():
     if nminloc==0:
         idx0 = np.random.choice(np.where(y==0)[0], nmin-ntest, replace=True)
     else:
-        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx0 = np.random.choice(np.where(y==0)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 1
     if nminloc==1:
         idx1 = np.random.choice(np.where(y==1)[0], nmin-ntest, replace=True)
     else:
-        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx1 = np.random.choice(np.where(y==1)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 2
     if nminloc==2:
         idx2 = np.random.choice(np.where(y==2)[0], nmin-ntest, replace=True)
     else:
-        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx2 = np.random.choice(np.where(y==2)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     # Get random nmin-ntest trials of class 3
     if nminloc==3:
         idx3 = np.random.choice(np.where(y==3)[0], nmin-ntest, replace=True)
     else:
-        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=False)
+        idx3 = np.random.choice(np.where(y==3)[0], int(takeMoreData*(nmin-ntest)), replace=True)
     print('which are 0: ', np.where(y==0)[0])
     print('idx0: ', idx0)
     # Get the indices of the training trials
@@ -102,7 +102,7 @@ def mlp_kim():
 
     # Make sure the labels are 1D arrays
     y_train = np.squeeze(y_train)
-    y_test = np.squeeze(y_test)
+    y_test = np.squeeze(y_test) """
 
     #n_neurons=NNrank*X_train.shape[0]*X_train.shape[1] # number of neurons in the hidden layer
     n_neurons=Nneurons
@@ -110,7 +110,7 @@ def mlp_kim():
     n_neurons = int(n_neurons)
     print('Number of neurons in the hidden layer: ', n_neurons)
 
-    # Reshape the data into 2D arrays
+    """ # Reshape the data into 2D arrays
     X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1], X_train.shape[2]))
     X_test = np.reshape(X_test, (X_test.shape[0]*X_test.shape[1], X_test.shape[2]))
     # Trials should be first dimension and features should be second dimension
@@ -168,7 +168,7 @@ def mlp_kim():
     sns.heatmap(cm, cmap='jet')
     plt.xlabel('True')
     plt.ylabel('Predicted')
-    plt.show()
+    plt.show() """
 
     
     # Now do the same thing with pytorch
@@ -184,7 +184,7 @@ def mlp_kim():
     y = y.T
     print(X.shape)
     print(y.shape)
-    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac) #, stratify=y)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=holdout_frac, stratify=y)
     print(X_train.shape)
     print(X_test.shape)
     print(y_train.shape)
