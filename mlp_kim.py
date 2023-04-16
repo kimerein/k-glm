@@ -20,7 +20,7 @@ def mlp_kim():
     holdout_frac=0.3 # fraction of data to hold out for testing
     L2_alpha=0.0005 #1 # be very careful with this!! bad if too big
     #NNrank=0.0005 #0.0125 #0.0005 #0.25 #0.75 # rank of the neural network
-    Nneurons=4 #2 #32 # number of neurons in the hidden layer
+    Nneurons=4 #32 # number of neurons in the hidden layer
     takeMoreData=2 # take this fraction of data from the classes with more trials
     nn_solver='adam' # 'lbfgs' or 'adam'
     maxIte=60000 # maximum number of iterations
