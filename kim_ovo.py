@@ -82,6 +82,7 @@ def trainOVO(X, y, whichKernel):
 def load_dataset():
 
     import scipy.io
+    from scipy.ndimage import gaussian_filter1d
 
     # define files to import from Matlab
     Xname=r'C:\Users\sabatini\Documents\currtens\tensor.mat'
@@ -101,6 +102,9 @@ def load_dataset():
     print(X.shape)
     print(y.shape)
 
+    # Smooth each trial with a Gaussian kernel
+    #X = gaussian_filter1d(X, sigma=3, axis=1, mode='nearest')
+
     # Linearize first two dimensions of tensor
     X = np.reshape(X, (X.shape[0]*X.shape[1], X.shape[2]))
     print(X.shape)
@@ -114,6 +118,10 @@ def load_dataset():
     # Fill all nans with zeros
     X = np.nan_to_num(X)
     y = np.nan_to_num(y)
+
+    # Exclude trials with all zeros
+    y=y[np.any(X>0.5, axis=1)]
+    X = X[np.any(X>0.5, axis=1), :]
 
     return X, y, timepoints, time_step
 
