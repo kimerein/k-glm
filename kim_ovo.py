@@ -10,11 +10,21 @@ def kim_ovo():
     print(X.shape)
 
     # Train SVM classifier with OvO strategy
-    trainOVO(X, y, whichKernel='linear')
-    trainOVO(X, y, whichKernel='poly')
-    trainOVO(X, y, whichKernel='rbf')
-    trainOVO(X, y, whichKernel='sigmoid')
-    print()
+    # Train OVO but only get the test accuracy
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='linear', dispOutput=False)
+    vioPlots(testaccuracy, shuffleaccuracy)
+    title = 'Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='poly', dispOutput=False)
+    vioPlots(testaccuracy, shuffleaccuracy)
+    title = 'Distribution of Test and Shuffle Accuracies for Polynomial Kernel'
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='rbf', dispOutput=False)
+    vioPlots(testaccuracy, shuffleaccuracy)
+    title = 'Distribution of Test and Shuffle Accuracies for RBF Kernel'
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
+    vioPlots(testaccuracy, shuffleaccuracy)
+    title = 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel'
+
+    return
 
     # Make 0 and 1 the same label, and make 2 and 3 the same label
     # This puts successes together, failures together
@@ -41,12 +51,71 @@ def kim_ovo():
     print()
 
 
-def trainOVO(X, y, whichKernel):
+def vioPlots(testaccuracy_vec, shuffleaccuracy_vec):
+    import matplotlib.pyplot as plt
+    from scipy.stats import shapiro, ttest_ind, mannwhitneyu
+    import numpy as np
+
+    # test for normality
+    _, p1 = shapiro(testaccuracy_vec)
+    _, p2 = shapiro(shuffleaccuracy_vec)
+
+    if p1 > 0.05 and p2 > 0.05:
+        # if both vectors are normally distributed, perform a t-test
+        t, p = ttest_ind(testaccuracy_vec, shuffleaccuracy_vec)
+        if p < 0.05:
+            print('Means are significantly different')
+            print('p = ', p)
+        else:
+            print('Means are not significantly different')
+            print('p = ', p)
+    else:
+        # if not normally distributed, perform a Mann-Whitney U test
+        u, p = mannwhitneyu(testaccuracy_vec, shuffleaccuracy_vec)
+        if p < 0.05:
+            print('Distributions are significantly different')
+            print('p = ', p)
+        else:
+            print('Distributions are not significantly different')
+            print('p = ', p)
+
+    # Create a figure with a single subplot
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+
+    # Create a violin plot of the test accuracy distribution
+    ax.violinplot(testaccuracy_vec, positions=[1], showmeans=True, showextrema=True)
+
+    # Create a violin plot of the shuffle accuracy distribution
+    ax.violinplot(shuffleaccuracy_vec, positions=[2], showmeans=True, showextrema=True)
+
+    # Add labels and title
+    ax.set_xticks([1, 2])
+    ax.set_xticklabels(['Test Accuracy', 'Shuffle Accuracy'])
+    ax.set_ylabel('Accuracy')
+    ax.set_title('Distribution of Test and Shuffle Accuracies')
+
+    plt.show()
+
+
+def trainOVOloop(X, y, whichKernel, dispOutput):
+    n = 100  # number of iterations
+    testaccuracy_vec = []  # vector to store test accuracies
+    shuffleaccuracy_vec = []  # vector to store shuffle accuracies
+
+    for i in range(n):
+        _, testaccuracy, shuffleaccuracy = trainOVO(X, y, whichKernel='linear', dispOutput=False)
+        testaccuracy_vec.append(testaccuracy)
+        shuffleaccuracy_vec.append(shuffleaccuracy)
+    
+    return testaccuracy_vec, shuffleaccuracy_vec
+
+
+def trainOVO(X, y, whichKernel, dispOutput):
 
     import sklearn.utils.class_weight
 
     # Split data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     #print(X_train.shape)
     #print(X_test.shape)
     #print(y_train.shape)
@@ -63,20 +132,25 @@ def trainOVO(X, y, whichKernel):
     # Perform 5-fold cross-validation on training set
     scores = cross_val_score(svm, X_train, y_train, cv=5)
 
-    # Print cross-validation scores
-    print("Cross-validation scores:", scores)
+    if dispOutput:
+        # Print cross-validation scores
+        print("Cross-validation scores:", scores)
 
     # Train SVM classifier on full training set
     svm.fit(X_train, y_train)
 
     # Evaluate test accuracy on held-out test set
     test_accuracy = svm.score(X_test, y_test)
-    print("Test accuracy for kernel ", whichKernel, ': ', test_accuracy)
+    if dispOutput:
+        print("Test accuracy for kernel ", whichKernel, ': ', test_accuracy)
 
     # Evaluate test accuracy on label shuffle of held-out test set
     y_test_shuffled = np.random.permutation(y_test)
     test_accuracy_shuffled = svm.score(X_test, y_test_shuffled)
-    print("Test accuracy on shuffled labels: ", test_accuracy_shuffled)
+    if dispOutput:
+        print("Test accuracy on shuffled labels: ", test_accuracy_shuffled)
+
+    return svm, test_accuracy, test_accuracy_shuffled
 
 
 def load_dataset():
