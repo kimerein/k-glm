@@ -3,6 +3,7 @@ from sklearn import datasets
 from sklearn.multiclass import OneVsOneClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split, cross_val_score
+import matplotlib.pyplot as plt
 
 def kim_ovo():
     # Load dataset
@@ -12,19 +13,19 @@ def kim_ovo():
     # Train SVM classifier with OvO strategy
     # Train OVO but only get the test accuracy
     testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='linear', dispOutput=False)
-    vioPlots(testaccuracy, shuffleaccuracy)
     title = 'Distribution of Test and Shuffle Accuracies for Linear Kernel'
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='poly', dispOutput=False)
-    vioPlots(testaccuracy, shuffleaccuracy)
-    title = 'Distribution of Test and Shuffle Accuracies for Polynomial Kernel'
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='rbf', dispOutput=False)
-    vioPlots(testaccuracy, shuffleaccuracy)
-    title = 'Distribution of Test and Shuffle Accuracies for RBF Kernel'
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
-    vioPlots(testaccuracy, shuffleaccuracy)
-    title = 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel'
-
-    return
+    vioPlots(testaccuracy, shuffleaccuracy, title)
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='poly', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Polynomial Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='rbf', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for RBF Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
+    # If train on shuffled y
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
+    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    vioPlots(testaccuracy, shuffleaccuracy, title)
+    print()
 
     # Make 0 and 1 the same label, and make 2 and 3 the same label
     # This puts successes together, failures together
@@ -33,10 +34,18 @@ def kim_ovo():
     y[y == 0] = 1
     y[y == 2] = 3
     # Train this
-    trainOVO(X, y, whichKernel='linear')
-    trainOVO(X, y, whichKernel='poly')
-    trainOVO(X, y, whichKernel='rbf')
-    trainOVO(X, y, whichKernel='sigmoid')
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='linear', dispOutput=False)
+    title = 'Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    vioPlots(testaccuracy, shuffleaccuracy, title)
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='poly', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Polynomial Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='rbf', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for RBF Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
+    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    vioPlots(testaccuracy, shuffleaccuracy, title)
     print()
 
     # Make 0 and 2 the same label, and make 1 and 3 the same label
@@ -44,14 +53,22 @@ def kim_ovo():
     y[y == 0] = 2
     y[y == 1] = 3
     # Train this
-    trainOVO(X, y, whichKernel='linear')
-    trainOVO(X, y, whichKernel='poly')
-    trainOVO(X, y, whichKernel='rbf')
-    trainOVO(X, y, whichKernel='sigmoid')
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='linear', dispOutput=False)
+    title = 'Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    vioPlots(testaccuracy, shuffleaccuracy, title)
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='poly', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Polynomial Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='rbf', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for RBF Kernel')
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
+    #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
+    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
+    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    vioPlots(testaccuracy, shuffleaccuracy, title)
     print()
 
 
-def vioPlots(testaccuracy_vec, shuffleaccuracy_vec):
+def vioPlots(testaccuracy_vec, shuffleaccuracy_vec, title):
     import matplotlib.pyplot as plt
     from scipy.stats import shapiro, ttest_ind, mannwhitneyu
     import numpy as np
@@ -92,7 +109,7 @@ def vioPlots(testaccuracy_vec, shuffleaccuracy_vec):
     ax.set_xticks([1, 2])
     ax.set_xticklabels(['Test Accuracy', 'Shuffle Accuracy'])
     ax.set_ylabel('Accuracy')
-    ax.set_title('Distribution of Test and Shuffle Accuracies')
+    ax.set_title(title)
 
     plt.show()
 
@@ -153,6 +170,45 @@ def trainOVO(X, y, whichKernel, dispOutput):
     return svm, test_accuracy, test_accuracy_shuffled
 
 
+def simulateMoreCells(X, y, n_cells, n_trials):
+    import numpy as np
+    
+    k = 0
+    moreCells_subX = np.zeros((n_cells, X.shape[1], n_trials * np.unique(y).shape[0]))
+    moreCells_suby = np.zeros((n_trials * np.unique(y).shape[0]))
+    for i in np.unique(y):
+        # Get indices of y where y == i
+        idx = np.where(y == i)[0]
+        print(idx)
+        subX = X[:, :, idx].copy()
+        print(subX.shape)
+        for j in range(n_trials):
+            moreCells_subX[:,:,k] = randomlySampleCells(subX, n_cells)
+            moreCells_suby[k] = i
+            k = k+1
+      
+    return moreCells_subX, moreCells_suby
+
+
+def randomlySampleCells(X, n_rows):
+    import numpy as np
+
+    # randomly sample n rows from 3D matrix
+    samples = np.zeros((n_rows, X.shape[1]))
+
+    for i in range(n_rows):
+        # randomly choose index from the third dimension
+        rand_idx = np.random.randint(X.shape[2])
+        
+        # randomly choose index from the first dimension
+        rand_row_idx = np.random.randint(X.shape[0])
+        
+        # concatenate selected row to samples
+        samples[i] = X[rand_row_idx, :, rand_idx]
+    
+    return samples
+
+
 def load_dataset():
 
     import scipy.io
@@ -178,6 +234,13 @@ def load_dataset():
 
     # Smooth each trial with a Gaussian kernel
     #X = gaussian_filter1d(X, sigma=3, axis=1, mode='nearest')
+
+    # Simulate more cells
+    n_cells = 100
+    n_trials = 100 # per trial condition
+    X, y = simulateMoreCells(X, y, n_cells, n_trials)
+    print(X.shape)
+    print(y.shape)
 
     # Linearize first two dimensions of tensor
     X = np.reshape(X, (X.shape[0]*X.shape[1], X.shape[2]))
