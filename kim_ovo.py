@@ -22,9 +22,9 @@ def kim_ovo():
     #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
     #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
     # If train on shuffled y
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
-    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
-    vioPlots(testaccuracy, shuffleaccuracy, title)
+    #testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
+    #title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
+    #vioPlots(testaccuracy, shuffleaccuracy, title)
     print()
 
     # Make 0 and 1 the same label, and make 2 and 3 the same label
@@ -43,9 +43,6 @@ def kim_ovo():
     #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for RBF Kernel')
     #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
     #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
-    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
-    vioPlots(testaccuracy, shuffleaccuracy, title)
     print()
 
     # Make 0 and 2 the same label, and make 1 and 3 the same label
@@ -62,9 +59,6 @@ def kim_ovo():
     #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for RBF Kernel')
     #testaccuracy, shuffleaccuracy = trainOVOloop(X, y, whichKernel='sigmoid', dispOutput=False)
     #vioPlots(testaccuracy, shuffleaccuracy, 'Distribution of Test and Shuffle Accuracies for Sigmoid Kernel')
-    testaccuracy, shuffleaccuracy = trainOVOloop(X, y = np.random.permutation(y), whichKernel='linear', dispOutput=False)
-    title = 'SHUFFLE TRAIN Distribution of Test and Shuffle Accuracies for Linear Kernel'
-    vioPlots(testaccuracy, shuffleaccuracy, title)
     print()
 
 
@@ -147,7 +141,8 @@ def trainOVO(X, y, whichKernel, dispOutput):
     svm = OneVsOneClassifier(SVC(kernel=whichKernel, class_weight=class_w))
 
     # Perform 5-fold cross-validation on training set
-    scores = cross_val_score(svm, X_train, y_train, cv=5)
+    #scores = cross_val_score(svm, X_train, y_train, cv=5)
+    scores = cross_val_score(svm, X_train, y_train, cv=2)
 
     if dispOutput:
         # Print cross-validation scores
@@ -209,6 +204,21 @@ def randomlySampleCells(X, n_rows):
     return samples
 
 
+def averageTrialBatches(x, y, nTrialsToAverage):
+    import numpy as np
+
+    # average sets of nTrialsToAverage neighboring elements along dimension 3
+    x_avg = np.mean(x[:, :, :x.shape[2]//nTrialsToAverage*nTrialsToAverage].reshape(x.shape[0], x.shape[1], x.shape[2]//nTrialsToAverage, nTrialsToAverage), axis=3)
+
+    # do same average along dimension 0 for y
+    y_avg = np.mean(y[:y.shape[0]//nTrialsToAverage*nTrialsToAverage].reshape(y.shape[0]//nTrialsToAverage, nTrialsToAverage), axis=1)
+
+    # discard the last few elements that cannot be grouped into sets of nTrialsToAverage
+    #x_avg = x_avg[:, :, :x.shape[2]//nTrialsToAverage*nTrialsToAverage]
+
+    return x_avg, y_avg
+
+
 def load_dataset():
 
     import scipy.io
@@ -232,15 +242,38 @@ def load_dataset():
     print(X.shape)
     print(y.shape)
 
+    # SHUFFLING DATA
+    #y = np.random.permutation(y)
+
     # Smooth each trial with a Gaussian kernel
     #X = gaussian_filter1d(X, sigma=3, axis=1, mode='nearest')
 
     # Simulate more cells
-    n_cells = 100
-    n_trials = 100 # per trial condition
+    n_cells = 50
+    n_trials = 50 # per trial condition
     X, y = simulateMoreCells(X, y, n_cells, n_trials)
     print(X.shape)
     print(y.shape)
+
+    # Average across batches of trials
+    # nTrialsToAverage = 3
+    # # Only average trials that are the same trial type
+    # avX = []
+    # avy = []
+    # for i in np.unique(y):
+    #     idx = np.where(y == i)[0]
+    #     newX, newy = averageTrialBatches(X[:, :, idx], y[idx], nTrialsToAverage)
+    #     # concatenate to avX and avy along 3rd dimension
+    #     if i == np.unique(y)[0]:
+    #         avX = newX
+    #         avy = newy
+    #     else:
+    #         avX = np.concatenate((avX, newX), axis=2)
+    #         avy = np.concatenate((avy, newy), axis=0)
+    # X = avX
+    # y = avy
+    # print(X.shape)
+    # print(y.shape)
 
     # Linearize first two dimensions of tensor
     X = np.reshape(X, (X.shape[0]*X.shape[1], X.shape[2]))

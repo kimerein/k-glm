@@ -25,7 +25,7 @@ def kim_run_glm():
     # Read csv
     df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
     direcname = df.iloc[:, 7]
-    currexpts = range(447, 450)
+    currexpts = range(260, 261)
     currexpts = range(currexpts[0] - 1, currexpts[-1] + 1)
     for i in currexpts:
         currdirecname = direcname[i]
@@ -34,7 +34,7 @@ def kim_run_glm():
             continue
         # Add 'forglm' to directory name
         #currdirecname = os.path.join(currdirecname, 'forglm')
-        currdirecname = os.path.join(currdirecname, 'forglm_trainingSet')
+        currdirecname = os.path.join(currdirecname, 'forglm_trainingSet_wreach')
         # If directory does not exist, skip
         if not os.path.exists(currdirecname):
             continue
@@ -74,7 +74,8 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
     # list of event types
     # event_types = ['cue', 'opto', 'distract', 'reachzone', 'fidget', 'success', 'drop', 'missing', 'failure', 'chew']
     #event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss']
-    event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss', 'cXsuc', 'cXdro', 'cXmis']
+    #event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss', 'cXsuc', 'cXdro', 'cXmis']
+    event_types = ['cue', 'opto', 'distract', 'success', 'drop', 'miss', 'cXsuc', 'cXdro', 'cXmis', 'reach']
 
     # flip dimensions of X
     X = np.transpose(X)
