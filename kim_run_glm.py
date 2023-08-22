@@ -25,7 +25,7 @@ def kim_run_glm():
     # Read csv
     df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
     direcname = df.iloc[:, 7]
-    currexpts = range(260, 261)
+    currexpts = range(293, 294)
     currexpts = range(currexpts[0] - 1, currexpts[-1] + 1)
     for i in currexpts:
         currdirecname = direcname[i]

@@ -206,7 +206,7 @@ def cv_glm_single_params(X, y, cv_idx, model_name, glm_kwargs, verbose=0, resp_l
 
         q.put((glm, args, kwargs))
     
-    num_workers = 3
+    num_workers = 4
     workers = [SGLM_worker(q) for _ in range(num_workers)]
     threads = [threading.Thread(target=worker.run_single, daemon=True) for worker in workers]
     for thread in threads:
