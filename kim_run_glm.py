@@ -20,13 +20,22 @@ from models import split_data
 from visualization import visualize
 import os
 
+# Define global boolean variable isPhotometry
+isPhotometry = True
+
 def kim_run_glm():
-    
+
     # Read csv
-    df = pd.read_csv(r'C:\Users\sabatini\Downloads\Spike sorting analysis - Combined phys and photo.csv')
-    direcname = df.iloc[:, 7]
-    currexpts = range(293, 294)
-    currexpts = range(currexpts[0] - 1, currexpts[-1] + 1)
+    df = pd.read_csv(r'C:\Users\kreinhold\Downloads\Spike sorting analysis - Combined phys and photo.csv')
+    # If isPhotometry is True, use photometry data
+    if isPhotometry:
+        direcname = df.iloc[:, 14] # for photometry
+    else:
+        direcname = df.iloc[:, 7] # for spikes
+
+    #currexpts = range(293, 294)
+    currexpts = range(165, 166)
+    currexpts = range(currexpts[0] - 1, currexpts[-1])
     for i in currexpts:
         currdirecname = direcname[i]
         print(currdirecname)
@@ -34,7 +43,8 @@ def kim_run_glm():
             continue
         # Add 'forglm' to directory name
         #currdirecname = os.path.join(currdirecname, 'forglm')
-        currdirecname = os.path.join(currdirecname, 'forglm_trainingSet_wreach')
+        #currdirecname = os.path.join(currdirecname, 'forglm_trainingSet_wreach')
+        currdirecname = os.path.join(currdirecname, 'forPhotoglm_testing')
         # If directory does not exist, skip
         if not os.path.exists(currdirecname):
             continue
@@ -145,8 +155,13 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
 
     # Timeshifts
     # Set up design matrix by shifting the data by various time steps
-    a=-20 #-9
-    b=50 #30
+    # If isPhotometry is false
+    if not isPhotometry:
+        a=-20 #-9
+        b=50 #30
+    else:
+        a=-20
+        b=50
     nshifts = list(range(a, b+1))
     print(nshifts)
 
@@ -288,6 +303,38 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
         # Fit model on training data, and score on holdout data
         glm, holdout_score, holdout_neg_mse_score = training_fit_holdout_score(X_setup, y_setup, X_holdout, y_holdout, best_params)
 
+        # Score held out data for only the y_holdout data beginning at each non-zero value of cue_0 and continuing 
+        # for another 50 indices after each non-zero value of cue_0
+        # This is to see how well the model predicts the held out data for the beginning of each trial,
+        # excluding the ITI, where we do not have behavior events
+        #y_true, y_hat = visualize.reconstruct_signal(glm, X_holdout, y_holdout)
+        #plt.show()
+        #X_holdout_withintrial = X_holdout.reset_index(drop=True)
+        #cue_0_indices = X_holdout_withintrial.index[X_holdout_withintrial['cue_0'] == 1].tolist()
+        #cue_0_indices_plus = [j for i in cue_0_indices for j in range(i, min(i+51, len(X_holdout_withintrial)))]
+        #cue_0_indices_plus = sorted(set(cue_0_indices_plus))
+        #print(f'len(cue_0_indices_plus): {len(cue_0_indices_plus)}')
+        #print(f'len(y_true): {len(y_true)}')
+        #print(f'len(y_hat): {len(y_hat)}')
+        #print(f"Type of cue_0_indices_plus: {type(cue_0_indices_plus)}")
+        #print(f"Are all indices integers? {all(isinstance(x, int) for x in cue_0_indices_plus)}")
+        #print(f"Max index in cue_0_indices_plus: {max(cue_0_indices_plus)}")
+        #print(f"Length of y_true: {len(y_true)}")
+        #y_true = y_true.to_numpy()
+        #print(f'shape of y_true: {y_true.shape}')
+        #print(f"Type of y_true: {type(y_true)}")
+        #y_true_cue_0 = y_true[cue_0_indices_plus]
+        #y_hat_cue_0 = y_hat[cue_0_indices_plus]
+        # Plot y_true_cue_0 and y_hat_cue_0
+        #plt.plot(y_true_cue_0, label='True')
+        #plt.plot(y_hat_cue_0, label='Pred')
+        #plt.legend()
+        #plt.show()
+        # Get R-squared between y_true_cue_0 and y_hat_cue_0
+        #from sklearn.metrics import r2_score
+        #r2_cue_0 = r2_score(y_true_cue_0, y_hat_cue_0)
+        #print(f'R-squared for cue_0_indices_plus: {r2_cue_0}')
+
         # Reconstruction and plot results
         if suppressPlots == False:
             coef_thresh=0.05
@@ -352,87 +399,181 @@ def kim_glm(direcname, doShuffle=False, suppressPlots=True):
 
 def chooseGLMhyperparams():
 
-    glm_hyperparams = [{
-        'alpha': 0.0, # 0 is OLS
-        'l1_ratio': 0.0,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.01, # 0 is OLS
-        'l1_ratio': 0.0,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.1, # 0 is OLS
-        'l1_ratio': 0.0,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 1, # 0 is OLS
-        'l1_ratio': 0.0,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.01, # 0 is OLS
-        'l1_ratio': 0.1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.1, # 0 is OLS
-        'l1_ratio': 0.1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 1, # 0 is OLS
-        'l1_ratio': 0.1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.01, # 0 is OLS
-        'l1_ratio': 0.5,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.1, # 0 is OLS
-        'l1_ratio': 0.5,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 1, # 0 is OLS
-        'l1_ratio': 0.5,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.01, # 0 is OLS
-        'l1_ratio': 0.9,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.1, # 0 is OLS
-        'l1_ratio': 0.9,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 1, # 0 is OLS
-        'l1_ratio': 0.9,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.01, # 0 is OLS
-        'l1_ratio': 1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 0.1, # 0 is OLS
-        'l1_ratio': 1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }, {
-        'alpha': 1, # 0 is OLS
-        'l1_ratio': 1,
-        'max_iter': 1000,
-        'fit_intercept': True
-    }]  # hyperparameters for glm
+    if not isPhotometry:
+        glm_hyperparams = [{
+            'alpha': 0.0, # 0 is OLS
+            'l1_ratio': 0.0,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 0.0,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.1, # 0 is OLS
+            'l1_ratio': 0.0,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 1, # 0 is OLS
+            'l1_ratio': 0.0,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 0.1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.1, # 0 is OLS
+            'l1_ratio': 0.1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 1, # 0 is OLS
+            'l1_ratio': 0.1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 0.5,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.1, # 0 is OLS
+            'l1_ratio': 0.5,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 1, # 0 is OLS
+            'l1_ratio': 0.5,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 0.9,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.1, # 0 is OLS
+            'l1_ratio': 0.9,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 1, # 0 is OLS
+            'l1_ratio': 0.9,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 0.1, # 0 is OLS
+            'l1_ratio': 1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }, {
+            'alpha': 1, # 0 is OLS
+            'l1_ratio': 1,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }]  # hyperparameters for glm
+    else:
+        glm_hyperparams = [{
+            'alpha': 0.01, # 0 is OLS
+            'l1_ratio': 0.01,
+            'max_iter': 1000,
+            'fit_intercept': True
+        }]  # hyperparameters for glm
+        #glm_hyperparams = [{
+        #    'alpha': 0.0, # 0 is OLS
+        #    'l1_ratio': 0.0,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.01, # 0 is OLS
+        #    'l1_ratio': 0.01,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0, # 0 is OLS
+        #    'l1_ratio': 0.01,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.01, # 0 is OLS
+        #    'l1_ratio': 0,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0, # 0 is OLS
+        #    'l1_ratio': 0.1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.1, # 0 is OLS
+        #    'l1_ratio': 0,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.1, # 0 is OLS
+        #    'l1_ratio': 0.1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0, # 0 is OLS
+        #    'l1_ratio': 0.5,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.5, # 0 is OLS
+        #    'l1_ratio': 0,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.5, # 0 is OLS
+        #    'l1_ratio': 0.5,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.1, # 0 is OLS
+        #    'l1_ratio': 0.5,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.5, # 0 is OLS
+        #    'l1_ratio': 0.1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0, # 0 is OLS
+        #    'l1_ratio': 1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 1, # 0 is OLS
+        #    'l1_ratio': 0,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 0.5, # 0 is OLS
+        #    'l1_ratio': 1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 1, # 0 is OLS
+        #    'l1_ratio': 0.5,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}, {
+        #    'alpha': 1, # 0 is OLS
+        #    'l1_ratio': 1,
+        #    'max_iter': 1000,
+        #    'fit_intercept': True
+        #}]  # hyperparameters for glm
 
     return glm_hyperparams
 
